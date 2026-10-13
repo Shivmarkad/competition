@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface Competitor {
   name: string;
@@ -17,12 +17,23 @@ export default function Home() {
   const [competitors, setCompetitors] = useState<Competitor[]>(DEFAULT_COMPETITORS);
   const [winner, setWinner] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [customNames, setCustomNames] = useState(["", ""]);
+  const [customNames, setCustomNames] = useState<string[]>(["", ""]);
   const [lastWinners, setLastWinners] = useState<number[]>([]);
   const [battlePhase, setBattlePhase] = useState<"idle" | "selecting" | "revealing">("idle");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [cardSize, setCardSize] = useState(280); // Base width in pixels
+
+  // Generic: find all indices with the maximum score (handles ties)
+  const maxScore = useMemo(() => Math.max(...competitors.map(c => c.score)), [competitors]);
+  const leadingIndices = useMemo(
+    () => competitors.map((c, i) => c.score === maxScore ? i : -1).filter(i => i !== -1),
+    [competitors, maxScore]
+  );
+  const isWinner = (index: number) => leadingIndices.includes(index) && maxScore > 0;
 
   const handleBattle = () => {
+    if (competitors.length < 2) return;
+
     setIsAnimating(true);
     setBattlePhase("selecting");
     setSelectedIndex(0);
@@ -32,9 +43,11 @@ export default function Home() {
     const lastFour = lastWinners.slice(-4);
 
     if (lastFour.length === 4 && lastFour.every((w) => w === lastFour[0])) {
-      randomWinner = lastFour[0] === 0 ? 1 : 0;
+      // Pick any competitor except the one that won 4 times
+      const otherIndices = competitors.map((_, i) => i).filter(i => i !== lastFour[0]);
+      randomWinner = otherIndices[Math.floor(Math.random() * otherIndices.length)];
     } else {
-      randomWinner = Math.floor(Math.random() * 2);
+      randomWinner = Math.floor(Math.random() * competitors.length);
     }
 
     // Animation sequence: selecting (rapid switching) -> revealing (slow down) -> result
@@ -45,8 +58,8 @@ export default function Home() {
 
     const runSelectionAnimation = () => {
       if (currentCycle < totalCycles) {
-        // Alternate between competitors during selection
-        setSelectedIndex(currentCycle % 2);
+        // Cycle through all competitors during selection
+        setSelectedIndex(currentCycle % competitors.length);
 
         // Progressive slowdown
         const progress = currentCycle / totalCycles;
@@ -58,6 +71,8 @@ export default function Home() {
         // Reveal phase - show the winner
         setBattlePhase("revealing");
         setSelectedIndex(randomWinner);
+        // Set winner immediately so reveal animation works
+        setWinner(randomWinner);
 
         setTimeout(() => {
           setCompetitors((prev) =>
@@ -68,10 +83,9 @@ export default function Home() {
           );
 
           setLastWinners((prev) => [...prev.slice(-4), randomWinner]);
-          setWinner(randomWinner);
           setBattlePhase("idle");
           setIsAnimating(false);
-        }, 500); // Hold the winner for a moment
+        }, 2000); // Hold the winner for 2 seconds so it's visible
       }
     };
 
@@ -79,9 +93,8 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setCompetitors(DEFAULT_COMPETITORS);
+    setCompetitors((prev) => prev.map((c) => ({ ...c, score: 0 })));
     setWinner(null);
-    setCustomNames(["", ""]);
     setLastWinners([]);
   };
 
@@ -106,9 +119,42 @@ export default function Home() {
     }
   };
 
+  const handleAddCompetitor = () => {
+    const newIndex = competitors.length;
+    setCompetitors((prev) => [...prev, { name: `Competitor ${newIndex + 1}`, image: "/competitor1.jpg", score: 0 }]);
+    setCustomNames((prev) => [...prev, ""]);
+  };
+
+  const handleRemoveCompetitor = (index: number) => {
+    if (competitors.length <= 2) return; // Minimum 2 competitors
+    setCompetitors((prev) => prev.filter((_, i) => i !== index));
+    setCustomNames((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const colors = [
+    { border: "border-indigo-300 dark:border-indigo-700", bg: "bg-indigo-50 dark:bg-indigo-900", focus: "focus:ring-indigo-500", score: "text-indigo-600 dark:text-indigo-400" },
+    { border: "border-pink-300 dark:border-pink-700", bg: "bg-pink-50 dark:bg-pink-900", focus: "focus:ring-pink-500", score: "text-pink-600 dark:text-pink-400" },
+    { border: "border-emerald-300 dark:border-emerald-700", bg: "bg-emerald-50 dark:bg-emerald-900", focus: "focus:ring-emerald-500", score: "text-emerald-600 dark:text-emerald-400" },
+    { border: "border-amber-300 dark:border-amber-700", bg: "bg-amber-50 dark:bg-amber-900", focus: "focus:ring-amber-500", score: "text-amber-600 dark:text-amber-400" },
+    { border: "border-violet-300 dark:border-violet-700", bg: "bg-violet-50 dark:bg-violet-900", focus: "focus:ring-violet-500", score: "text-violet-600 dark:text-violet-400" },
+    { border: "border-rose-300 dark:border-rose-700", bg: "bg-rose-50 dark:bg-rose-900", focus: "focus:ring-rose-500", score: "text-rose-600 dark:text-rose-400" },
+  ];
+
+  const cardBgGradients = [
+    "bg-gradient-to-br from-indigo-100 to-pink-100 dark:from-indigo-900 dark:to-pink-900",
+    "bg-gradient-to-br from-pink-100 to-emerald-100 dark:from-pink-900 dark:to-emerald-900",
+    "bg-gradient-to-br from-emerald-100 to-amber-100 dark:from-emerald-900 dark:to-amber-900",
+    "bg-gradient-to-br from-amber-100 to-violet-100 dark:from-amber-900 dark:to-violet-900",
+    "bg-gradient-to-br from-violet-100 to-rose-100 dark:from-violet-900 dark:to-rose-900",
+    "bg-gradient-to-br from-rose-100 to-indigo-100 dark:from-rose-900 dark:to-indigo-900",
+  ];
+
+  const numColumns = competitors.length + 1; // +1 for center battle column
+  const gridCols = competitors.length >= 3 ? competitors.length + 1 : 3;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 py-12 px-4">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="text-center mb-12">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent mb-4">
@@ -119,77 +165,70 @@ export default function Home() {
           </p>
         </header>
 
-        {/* Battle Arena */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-          {/* Competitor 1 - Column 1 */}
-          <CompetitorCard
-            competitor={competitors[0]}
-            index={0}
-            isWinner={winner === 0}
-            isAnimating={isAnimating}
-            isSelected={isAnimating && battlePhase === "selecting" && selectedIndex === 0}
-            isRevealing={isAnimating && battlePhase === "revealing" && winner === 0}
-            onNameChange={handleNameChange}
-            onImageUpload={handleImageUpload}
-            customName={customNames[0]}
-          />
+        {/* Battle Arena - Competitors in horizontal row, Battle below */}
+        <div className="flex flex-col items-center gap-12">
+          {/* Competitor Cards - Horizontal Row */}
+          <div className="flex flex-wrap justify-center gap-8 w-full">
+            {competitors.map((competitor, index) => (
+              <CompetitorCard
+                key={index}
+                competitor={competitor}
+                index={index}
+                isWinner={isWinner(index)}
+                isAnimating={isAnimating}
+                isSelected={isAnimating && battlePhase === "selecting" && selectedIndex === index}
+                isRevealing={isAnimating && battlePhase === "revealing" && winner === index}
+                onNameChange={handleNameChange}
+                onImageUpload={handleImageUpload}
+                onRemove={competitors.length > 2 ? () => handleRemoveCompetitor(index) : undefined}
+                customName={customNames[index]}
+                borderColor={colors[index % colors.length].border}
+                inputClasses={`${colors[index % colors.length].bg} border-${colors[index % colors.length].border.replace('border-', '').replace('dark:border-', 'dark:border-')} text-${colors[index % colors.length].score.replace('text-', '').replace('dark:text-', 'dark:text-')} ${colors[index % colors.length].focus}`}
+                scoreColor={colors[index % colors.length].score}
+                cardBgGradient={cardBgGradients[index % cardBgGradients.length]}
+                cardSize={cardSize}
+              />
+            ))}
+          </div>
 
-          {/* Battle Button - Column 2 (Center) - Fixed center column */}
-          <div className="flex flex-col items-center justify-center relative md:col-span-1">
-            <div className="relative flex items-center justify-center mb-4">
-              {/* Selection Animation - Shows cycling between competitors */}
+          {/* Battle Section - Centered Below (just VS badge and button) */}
+          <div className="flex flex-col items-center justify-center relative min-w-0 w-full max-w-md">
+            <div className="relative flex items-center justify-center mb-4 min-h-[80px] w-full">
+              {/* Phase indicator text - positioned above VS */}
               {isAnimating && battlePhase === "selecting" && (
-                <div className="absolute inset-0 flex items-center justify-center gap-4 pointer-events-none">
-                  {/* Competitor 1 preview */}
-                  <div className={`w-16 h-16 rounded-2xl overflow-hidden border-4 transition-all duration-100 ${selectedIndex === 0 ? 'border-yellow-400 scale-125 shadow-2xl shadow-yellow-400/50' : 'border-indigo-300 dark:border-indigo-700 opacity-60 scale-90'}`}>
-                    <img src={competitors[0].image} alt={competitors[0].name} className="w-full h-full object-cover" />
-                  </div>
-                  <span className="text-white font-bold text-2xl animate-bounce">⚡</span>
-                  {/* Competitor 2 preview */}
-                  <div className={`w-16 h-16 rounded-2xl overflow-hidden border-4 transition-all duration-100 ${selectedIndex === 1 ? 'border-yellow-400 scale-125 shadow-2xl shadow-yellow-400/50' : 'border-pink-300 dark:border-pink-700 opacity-60 scale-90'}`}>
-                    <img src={competitors[1].image} alt={competitors[1].name} className="w-full h-full object-cover" />
-                  </div>
-                </div>
-              )}
-
-              {/* Reveal Animation - Shows winner */}
-              {isAnimating && battlePhase === "revealing" && winner !== null && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-yellow-400 shadow-2xl shadow-yellow-400/50 animate-fade-in scale-100">
-                    <img src={competitors[winner].image} alt={competitors[winner].name} className="w-full h-full object-cover" />
-                  </div>
-                </div>
-              )}
-
-              {/* Phase indicator text */}
-              {isAnimating && battlePhase === "selecting" && (
-                <div className="absolute bottom-[-40px] left-1/2 -translate-x-1/2 text-center animate-pulse">
+                <div className="absolute top-[-40px] left-1/2 -translate-x-1/2 text-center animate-pulse">
                   <p className="text-yellow-400 font-bold text-lg bg-gray-900/80 px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
                     ⚡ SELECTING CHALLENGER...
                   </p>
                 </div>
               )}
               {isAnimating && battlePhase === "revealing" && (
-                <div className="absolute bottom-[-40px] left-1/2 -translate-x-1/2 text-center animate-fade-in">
+                <div className="absolute top-[-40px] left-1/2 -translate-x-1/2 text-center animate-fade-in">
                   <p className="text-yellow-400 font-bold text-lg bg-gray-900/80 px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
                     🏆 WINNER REVEALED!
                   </p>
                 </div>
               )}
 
-              {/* Default VS */}
-              {!isAnimating && (
+              {/* Default VS or Winner badge during reveal */}
+              {!isAnimating && competitors.length > 0 && (
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">
                   VS
                 </div>
               )}
+              {isAnimating && battlePhase === "revealing" && winner !== null && (
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold text-2xl shadow-2xl animate-fade-in">
+                  🏆
+                </div>
+              )}
+            </div>
 
             {/* Battle Button */}
-            <div className="flex items-center justify-center px-4 mb-4">
+            <div className="flex items-center justify-center px-4 mb-4 w-full">
               <button
                 onClick={handleBattle}
-                disabled={isAnimating}
-                className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-bold text-lg rounded-full shadow-lg hover:from-indigo-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/50"
+                disabled={isAnimating || competitors.length < 2}
+                className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-bold text-lg rounded-full shadow-lg hover:from-indigo-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full max-w-xs"
               >
                 {isAnimating ? (
                   <span className="flex items-center gap-2 animate-pulse">
@@ -205,10 +244,10 @@ export default function Home() {
 
             {/* Winner Announcement - Show during animation too */}
             {winner !== null && (
-              <div className="animate-fade-in mb-4">
+              <div className="animate-fade-in mb-4 w-full">
                 <div className="bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 dark:from-yellow-500 dark:via-amber-600 dark:to-orange-600 rounded-2xl border-2 border-yellow-300 dark:border-yellow-700 p-4 text-center shadow-lg shadow-yellow-500/25 transition-all duration-300">
                   <p className="text-xl font-bold text-gray-900 dark:text-gray-900">
-                    🏆 {competitors[winner].name} is ahead!
+                    🏆 {competitors[winner].name} won this round!
                   </p>
                   <p className="text-gray-800 dark:text-gray-800 font-medium">
                     Score: {competitors[winner].score}
@@ -217,26 +256,38 @@ export default function Home() {
               </div>
             )}
 
-            <button
-              onClick={handleReset}
-              className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
-            >
-              Reset Scores
-            </button>
-          </div>
+            <div className="flex items-center justify-center gap-4 w-full flex-wrap">
+              <button
+                onClick={handleReset}
+                className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
+              >
+                Reset Scores
+              </button>
+              <button
+                onClick={handleAddCompetitor}
+                className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                + Add Competitor
+              </button>
+            </div>
 
-          {/* Competitor 2 - Column 3 */}
-          <CompetitorCard
-            competitor={competitors[1]}
-            index={1}
-            isWinner={winner === 1}
-            isAnimating={isAnimating}
-            isSelected={isAnimating && battlePhase === "selecting" && selectedIndex === 1}
-            isRevealing={isAnimating && battlePhase === "revealing" && winner === 1}
-            onNameChange={handleNameChange}
-            onImageUpload={handleImageUpload}
-            customName={customNames[1]}
-          />
+            {/* Card Size Control */}
+            <div className="mt-6 w-full max-w-md">
+              <label className="flex items-center gap-4 text-gray-700 dark:text-gray-300 font-medium">
+                <span className="w-24">Card Size:</span>
+                <input
+                  type="range"
+                  min="200"
+                  max="400"
+                  step="20"
+                  value={cardSize}
+                  onChange={(e) => setCardSize(Number(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none accent-indigo-600 cursor-pointer"
+                />
+                <span className="w-16 text-right">{cardSize}px</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         {/* Instructions */}
@@ -249,6 +300,8 @@ export default function Home() {
             <li>• Winner's score increases automatically</li>
             <li>• No competitor can win 5 times in a row!</li>
             <li>• Click "Reset Scores" to start fresh</li>
+            <li>• Add more competitors with "+ Add Competitor" (max 6)</li>
+            <li>• Remove competitors with the × button (minimum 2)</li>
           </ul>
         </div>
       </div>
@@ -265,7 +318,13 @@ interface CompetitorCardProps {
   isRevealing?: boolean;
   onNameChange: (index: number, value: string) => void;
   onImageUpload: (index: number, event: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemove?: () => void;
   customName: string;
+  borderColor: string;
+  inputClasses: string;
+  scoreColor: string;
+  cardBgGradient: string;
+  cardSize: number;
 }
 
 function CompetitorCard({
@@ -277,14 +336,14 @@ function CompetitorCard({
   isRevealing = false,
   onNameChange,
   onImageUpload,
+  onRemove,
   customName,
+  borderColor,
+  inputClasses,
+  scoreColor,
+  cardBgGradient,
+  cardSize = 280,
 }: CompetitorCardProps) {
-  const borderColor = index === 0 ? "border-indigo-300 dark:border-indigo-700" : "border-pink-300 dark:border-pink-700";
-  const bgGradient = "bg-gradient-to-br from-indigo-100 to-pink-100 dark:from-indigo-900 dark:to-pink-900";
-  const inputClasses = index === 0
-    ? "bg-indigo-50 dark:bg-indigo-900 border-indigo-200 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200 focus:ring-indigo-500"
-    : "bg-pink-50 dark:bg-pink-900 border-pink-200 dark:border-pink-700 text-pink-800 dark:text-pink-200 focus:ring-pink-500";
-  const scoreColor = index === 0 ? "text-indigo-600 dark:text-indigo-400" : "text-pink-600 dark:text-pink-400";
   const cardBorder = isWinner
     ? "ring-4 ring-yellow-400 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 scale-105 animate-fade-in"
     : "border-gray-200 dark:border-gray-700";
@@ -294,12 +353,24 @@ function CompetitorCard({
 
   return (
     <div
+      style={{ width: cardSize }}
       className={`relative p-6 bg-white dark:bg-gray-800 rounded-3xl shadow-xl border-4 transition-all duration-300 ${cardBorder} ${shakeClass} ${selectedGlowClass} ${revealingGlowClass}`}
     >
+      {/* Remove button (if more than 2 competitors) */}
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500/80 text-white text-sm font-bold hover:bg-red-500 transition-colors flex items-center justify-center"
+          aria-label="Remove competitor"
+        >
+          ×
+        </button>
+      )}
+
       {/* Image Upload */}
       <div className="relative mb-4">
         <label htmlFor={`image-upload-${index}`} className="cursor-pointer">
-          <div className={`relative w-full aspect-square rounded-2xl overflow-hidden border-4 ${borderColor} ${bgGradient}`}>
+          <div className={`relative w-full aspect-square rounded-2xl overflow-hidden border-4 ${borderColor} ${cardBgGradient}`}>
             <img
               src={competitor.image}
               alt={competitor.name}
@@ -354,7 +425,7 @@ function CompetitorCard({
         <span className="text-gray-500 dark:text-gray-400 font-medium">Score</span>
       </div>
 
-      {/* Ahead Badge */}
+      {/* Ahead Badge - shows for ALL tied leaders */}
       {isWinner && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2">
           <span className="bg-yellow-400 text-gray-900 px-3 py-1 rounded-full text-sm font-bold shadow-lg animate-fade-in">

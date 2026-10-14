@@ -91,8 +91,8 @@ const AUTO_BATTLE_INTERVALS = [
 const BATTLE_TIMER_OPTIONS = [1, 5, 10, 30] as const;
 
 const DEFAULT_COMPETITORS: Competitor[] = [
-  { name: "Competitor 1", image: "/competitor1.jpg", score: 0, colorIndex: 0 },
-  { name: "Competitor 2", image: "/competitor2.jpg", score: 0, colorIndex: 1 },
+  { name: "Competitor 1", image: "https://picsum.photos/seed/competitor1/400/400", score: 0, colorIndex: 0 },
+  { name: "Competitor 2", image: "https://picsum.photos/seed/competitor2/400/400", score: 0, colorIndex: 1 },
 ];
 
 // ============================================
@@ -139,17 +139,23 @@ const CompetitorCard = memo(function CompetitorCard({
     fontSize: `${fontSize}rem`,
     borderRadius: `${radius + 0.5}rem`,
     minWidth: `${minWidth}px`,
+    maxWidth: `${minWidth}px`,
     marginBottom: `${margin}rem`,
+    flex: '0 0 auto',
   };
+  // Image container height scales with card size (same as min-width calculation)
+  const imageHeight = 140 + t * 340; // 140px to 480px
   const imageRadiusStyle: React.CSSProperties = {
     borderRadius: `${radius}rem`,
+    width: '100%',
+    height: `${imageHeight}px`,
   };
   const inputStyle: React.CSSProperties = {
     padding: `${inputPY}rem ${inputPX}rem`,
     borderRadius: `${radius * 0.75}rem`,
   };
   const scoreStyle: React.CSSProperties = {
-    fontSize: `${scoreScale}rem`,
+    fontSize: `${scoreScale * 1.3}rem`,
   };
   const scoreLabelStyle: React.CSSProperties = {
     fontSize: `${0.75 + t * 0.375}rem`,
@@ -157,6 +163,9 @@ const CompetitorCard = memo(function CompetitorCard({
   const scoreContainerStyle: React.CSSProperties = {
     gap: `${gap}rem`,
     marginBottom: `${margin}rem`,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
   };
 
   const cardBorder = isWinner
@@ -193,7 +202,7 @@ const CompetitorCard = memo(function CompetitorCard({
       {/* Image Upload */}
       <div style={{ marginBottom: `${margin}rem` }}>
         <label htmlFor={`image-upload-${index}`} className="cursor-pointer block">
-          <div className={`relative w-full aspect-square overflow-hidden border-4 ${borderColor} ${cardBgGradient}`} style={imageRadiusStyle}>
+          <div className={`relative w-full overflow-hidden border-4 ${borderColor} ${cardBgGradient}`} style={imageRadiusStyle}>
             <img
               src={competitor.image}
               alt={competitor.name}
@@ -252,11 +261,11 @@ const CompetitorCard = memo(function CompetitorCard({
         <span className="text-gray-500 dark:text-gray-400 font-medium" style={scoreLabelStyle}>Score</span>
       </div>
 
-      {/* Ahead Badge - shows for ALL tied leaders */}
+      {/* Ahead Badge - shows only for single clear leader */}
       {isWinner && (
-        <div className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2" aria-hidden="true">
-          <span className="bg-yellow-400 text-gray-900 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold shadow-lg animate-fade-in">
-            🏆 AHEAD!
+        <div className="flex justify-center mb-3 animate-fade-in" aria-hidden="true">
+          <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
+            🏆 LEADER
           </span>
         </div>
       )}
@@ -402,7 +411,7 @@ function useBattleLogic(competitors: Competitor[], lastWinners: number[]) {
     () => competitors.map((c, i) => c.score === maxScore ? i : -1).filter(i => i !== -1),
     [competitors, maxScore]
   );
-  const isWinner = useCallback((index: number) => leadingIndices.includes(index) && maxScore > 0, [leadingIndices, maxScore]);
+  const isWinner = useCallback((index: number) => leadingIndices.length === 1 && leadingIndices.includes(index) && maxScore > 0, [leadingIndices, maxScore]);
 
   const getRandomWinner = useCallback((): number => {
     if (competitors.length < 2) return 0;
@@ -515,7 +524,7 @@ export default function Home() {
   const [competitors, setCompetitors] = useState<Competitor[]>(DEFAULT_COMPETITORS);
   const [winner, setWinner] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [customNames, setCustomNames] = useState<string[]>(["", ""]);
+  const [customNames, setCustomNames] = useState<string[]>(() => DEFAULT_COMPETITORS.map(c => c.name));
   const [lastWinners, setLastWinners] = useState<number[]>([]);
   const [battlePhase, setBattlePhase] = useState<"idle" | "selecting" | "revealing">("idle");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -677,7 +686,7 @@ export default function Home() {
 
   const handleAddCompetitor = useCallback(() => {
     const newIndex = competitors.length;
-    setCompetitors((prev) => [...prev, { name: `Competitor ${newIndex + 1}`, image: "/competitor1.jpg", score: 0, colorIndex: newIndex % 6 }]);
+    setCompetitors((prev) => [...prev, { name: `Competitor ${newIndex + 1}`, image: `https://picsum.photos/seed/competitor${newIndex + 1}/400/400`, score: 0, colorIndex: newIndex % 6 }]);
     setCustomNames((prev) => [...prev, ""]);
   }, [competitors.length]);
 
@@ -714,7 +723,7 @@ export default function Home() {
           <div
             className="flex flex-wrap justify-center items-stretch"
             style={{
-              gap: `${0.25 + cardSize * 0.01}rem`,
+              gap: `${1.5 + cardSize * 0.025}rem`,
             } as React.CSSProperties}
           >
             {competitors.map((competitor, index) => (
@@ -769,11 +778,11 @@ export default function Home() {
               <button
                 onClick={handleBattle}
                 disabled={isAnimating || competitors.length < 2}
-                className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-bold text-lg rounded-full shadow-lg hover:from-indigo-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full max-w-xs"
+                className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-bold text-lg rounded-full shadow-lg hover:from-indigo-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full max-w-xs text-center"
                 aria-label={isAnimating ? "Battle in progress" : "Start battle"}
               >
                 {isAnimating ? (
-                  <span className="flex items-center gap-2 animate-pulse">
+                  <span className="flex items-center justify-center gap-2 animate-pulse">
                     <span className="animate-bounce">⚔️</span>
                     <span>BATTLING...</span>
                     <span className="animate-bounce" style={{animationDelay: '100ms'}}>⚔️</span>

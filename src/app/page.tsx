@@ -234,7 +234,7 @@ const CompetitorCard = memo(function CompetitorCard({
           id={`image-upload-${index}`}
           type="file"
           accept="image/*"
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          className="sr-only"
           onChange={(e) => onImageUpload(index, e)}
           aria-label={`Upload image for ${competitor.name}`}
         />

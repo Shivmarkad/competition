@@ -52,6 +52,12 @@ interface SettingsModalProps {
   formatTime: (seconds: number) => string;
   cardSize: number;
   onCardSizeChange: (size: number) => void;
+  soundEnabled: boolean;
+  onSoundEnabledToggle: () => void;
+  backgroundMusicEnabled: boolean;
+  onBackgroundMusicEnabledToggle: () => void;
+  backgroundMusicVolume: number;
+  onBackgroundMusicVolumeChange: (volume: number) => void;
 }
 
 // Animation constants
@@ -129,7 +135,7 @@ const CompetitorCard = memo(function CompetitorCard({
   const radius = 0.5 + t * 1.5; // 0.5rem to 2rem
   const scoreScale = 1.125 + t * 1.125; // 1.125rem to 2.25rem
   const gap = 0.25 + t * 1; // 0.25rem to 1.25rem
-  const margin = 0.5 + t * 1; // 0.5rem to 1.5rem
+  const margin = 0.25 + t * 0.5; // 0.25rem to 0.75rem (reduced from 0.5-1.5rem)
   const inputPX = 0.5 + t * 1.5; // 0.5rem to 2rem
   const inputPY = 0.25 + t * 0.5; // 0.25rem to 0.75rem
   const minWidth = 140 + t * 340; // 140px to 480px (floor at 140px)
@@ -274,6 +280,12 @@ const SettingsModal = memo(function SettingsModal({
   formatTime,
   cardSize,
   onCardSizeChange,
+  soundEnabled,
+  onSoundEnabledToggle,
+  backgroundMusicEnabled,
+  onBackgroundMusicEnabledToggle,
+  backgroundMusicVolume,
+  onBackgroundMusicVolumeChange,
 }: SettingsModalProps) {
   if (!isOpen) return null;
 
@@ -326,6 +338,52 @@ const SettingsModal = memo(function SettingsModal({
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Next battle in: <span className="font-mono font-bold">{autoBattleInterval / 1000}s</span>
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Sound Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">🔊 Sound</h3>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={soundEnabled}
+                onChange={onSoundEnabledToggle}
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 accent-indigo-600"
+              />
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Enable Sound Effects
+              </span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={backgroundMusicEnabled}
+                onChange={onBackgroundMusicEnabledToggle}
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 accent-indigo-600"
+              />
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Enable Background Music
+              </span>
+            </label>
+            {backgroundMusicEnabled && (
+              <div className="space-y-3 pl-8">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 w-24">Volume:</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={backgroundMusicVolume}
+                    onChange={(e) => onBackgroundMusicVolumeChange(Number(e.target.value))}
+                    className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none accent-indigo-600 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-500 dark:text-gray-400 w-10 text-right">{backgroundMusicVolume}%</span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Lo-fi ambient battle music
                 </p>
               </div>
             )}
@@ -522,18 +580,247 @@ export default function Home() {
   const [battleTimerRemaining, setBattleTimerRemaining] = useState(0);
   const [isBattleTimerRunning, setIsBattleTimerRunning] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [cardSize, setCardSize] = useState(50); // 0-100 continuous scale
+  const [cardSize, setCardSize] = useState(0); // 0-100 continuous scale - minimized for Android to show at least two cards side by side
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(false);
+  const [backgroundMusicVolume, setBackgroundMusicVolume] = useState(30);
+
+  // Load battle state from localStorage on initial render
+  useEffect(() => {
+    try {
+      const savedCompetitors = localStorage.getItem('battleCompetitors');
+      const savedCustomNames = localStorage.getItem('battleCustomNames');
+      const savedWinner = localStorage.getItem('battleWinner');
+      const savedLastWinners = localStorage.getItem('battleLastWinners');
+      const savedSoundEnabled = localStorage.getItem('battleSoundEnabled');
+
+      if (savedCompetitors) {
+        setCompetitors(JSON.parse(savedCompetitors));
+      }
+      if (savedCustomNames) {
+        setCustomNames(JSON.parse(savedCustomNames));
+      }
+      if (savedWinner) {
+        setWinner(JSON.parse(savedWinner));
+      }
+      if (savedLastWinners) {
+        setLastWinners(JSON.parse(savedLastWinners));
+      }
+      if (savedSoundEnabled !== null) {
+        setSoundEnabled(JSON.parse(savedSoundEnabled));
+      }
+      const savedBackgroundMusicEnabled = localStorage.getItem('battleBackgroundMusicEnabled');
+      const savedBackgroundMusicVolume = localStorage.getItem('battleBackgroundMusicVolume');
+      if (savedBackgroundMusicEnabled !== null) {
+        setBackgroundMusicEnabled(JSON.parse(savedBackgroundMusicEnabled));
+      }
+      if (savedBackgroundMusicVolume !== null) {
+        setBackgroundMusicVolume(JSON.parse(savedBackgroundMusicVolume));
+      }
+    } catch (error) {
+      console.error('Failed to load battle state from localStorage:', error);
+      // Fallback to default state (useState initializers will handle this)
+    }
+  }, []); // Empty deps - run once on mount
+
+  // Save battle state to localStorage whenever relevant state changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('battleCompetitors', JSON.stringify(competitors));
+      localStorage.setItem('battleCustomNames', JSON.stringify(customNames));
+      localStorage.setItem('battleWinner', JSON.stringify(winner));
+      localStorage.setItem('battleLastWinners', JSON.stringify(lastWinners));
+      localStorage.setItem('battleSoundEnabled', JSON.stringify(soundEnabled));
+      localStorage.setItem('battleBackgroundMusicEnabled', JSON.stringify(backgroundMusicEnabled));
+      localStorage.setItem('battleBackgroundMusicVolume', JSON.stringify(backgroundMusicVolume));
+
+      // Debug: Log when saving
+      console.log('Battle state saved to localStorage:', {
+        competitorsCount: competitors.length,
+        hasCustomNames: customNames.length > 0,
+        winner: winner,
+        lastWinnersLength: lastWinners.length,
+        soundEnabled: soundEnabled,
+        backgroundMusicEnabled: backgroundMusicEnabled,
+        backgroundMusicVolume: backgroundMusicVolume
+      });
+    } catch (error) {
+      console.error('Failed to save battle state to localStorage:', error);
+    }
+  }, [competitors, customNames, winner, lastWinners, soundEnabled, backgroundMusicEnabled, backgroundMusicVolume]);
 
   // Derived state
   const { isWinner, getRandomWinner } = useBattleLogic(competitors, lastWinners);
+
+  // Sound effects
+  const playBattleSound = useCallback(() => {
+    if (typeof window === 'undefined' || !soundEnabled) return;
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = 330; // E4 note (lower pitch for battle start)
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime); // start from 0
+      gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 0.01); // attack
+      gainNode.gain.setValueAtTime(0.4, audioContext.currentTime + 0.05); // hold
+      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.06); // release
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.06);
+    } catch (e) {
+      console.warn('Failed to play battle sound', e);
+    }
+  }, [soundEnabled]);
+
+  const playWinSound = useCallback(() => {
+    if (typeof window === 'undefined' || !soundEnabled) return;
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const playNote = (freq: number, time: number) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.value = freq;
+        gainNode.gain.setValueAtTime(0, time);
+        gainNode.gain.linearRampToValueAtTime(0.3, time + 0.01);
+        gainNode.gain.setValueAtTime(0.3, time + 0.1);
+        gainNode.gain.linearRampToValueAtTime(0, time + 0.11);
+        oscillator.start(time);
+        oscillator.stop(time + 0.11);
+      };
+      const now = audioContext.currentTime;
+      playNote(523.25, now); // C5
+      playNote(659.25, now + 0.12); // E5
+      playNote(783.99, now + 0.24); // G5
+      playNote(987.77, now + 0.36); // B5 (added fourth note for more triumphant sound)
+    } catch (e) {
+      console.warn('Failed to play win sound', e);
+    }
+  }, [soundEnabled]);
+
+  // Background music - simple lo-fi ambient track
+  // Use refs to persist audio nodes across renders for smooth volume changes
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const lfoRef = useRef<OscillatorNode | null>(null);
+  const detuneLfoRef = useRef<OscillatorNode | null>(null);
+
+  // Initialize/start background music
+  useEffect(() => {
+    if (typeof window === 'undefined' || !backgroundMusicEnabled) {
+      console.log('[BackgroundMusic] Effect skipped:', { window: typeof window, backgroundMusicEnabled });
+      return;
+    }
+
+    console.log('[BackgroundMusic] Starting music, volume:', backgroundMusicVolume);
+
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioContextRef.current = audioContext;
+
+    // Resume audio context if suspended (browser autoplay policy)
+    if (audioContext.state === 'suspended') {
+      console.log('[BackgroundMusic] Resuming suspended audio context');
+      audioContext.resume().then(() => console.log('[BackgroundMusic] Audio context resumed'));
+    }
+
+    console.log('[BackgroundMusic] Audio context state:', audioContext.state);
+
+    // Master gain for volume control
+    const masterGain = audioContext.createGain();
+    masterGain.gain.value = backgroundMusicVolume / 100 * 0.2; // Slightly louder
+    masterGainRef.current = masterGain;
+
+    // Lowpass filter for warmer sound
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 600;
+    filter.Q.value = 1;
+
+    // Correct signal chain: masterGain -> filter -> destination
+    masterGain.connect(filter);
+    filter.connect(audioContext.destination);
+
+    // Create multiple oscillators for ambient chord
+    const oscillators: OscillatorNode[] = [];
+    const oscGains: GainNode[] = [];
+    // A minor pentatonic: A2, C3, E3, A3 (110, 130.81, 164.81, 220)
+    const frequencies = [110, 130.81, 164.81, 220];
+
+    frequencies.forEach((freq) => {
+      const osc = audioContext.createOscillator();
+      const oscGain = audioContext.createGain();
+      osc.connect(oscGain);
+      oscGain.connect(masterGain);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      oscGain.gain.value = 0.02; // Slightly louder per oscillator
+      osc.start();
+      oscillators.push(osc);
+      oscGains.push(oscGain);
+    });
+    oscillatorsRef.current = oscillators;
+
+    // Very slow LFO for gentle amplitude modulation
+    const lfo = audioContext.createOscillator();
+    const lfoGain = audioContext.createGain();
+    lfo.connect(lfoGain);
+    lfoGain.connect(masterGain.gain);
+    lfo.frequency.value = 0.05; // Very slow (20 second cycle)
+    lfo.type = 'sine';
+    lfoGain.gain.value = 0.01;
+    lfo.start();
+    lfoRef.current = lfo;
+
+    // Slight detune LFO for organic feel
+    const detuneLfo = audioContext.createOscillator();
+    const detuneGain = audioContext.createGain();
+    detuneLfo.connect(detuneGain);
+    detuneLfo.frequency.value = 0.03;
+    detuneLfo.type = 'triangle';
+    detuneGain.gain.value = 8; // cents
+    oscillators.forEach((osc) => {
+      detuneGain.connect(osc.frequency);
+    });
+    detuneLfo.start();
+    detuneLfoRef.current = detuneLfo;
+
+    // Cleanup
+    return () => {
+      oscillators.forEach(osc => { try { osc.stop(); } catch {} });
+      oscGains.forEach(g => { try { g.disconnect(); } catch {} });
+      try { lfo.stop(); } catch {}
+      try { lfoGain.disconnect(); } catch {}
+      try { detuneLfo.stop(); } catch {}
+      try { detuneGain.disconnect(); } catch {}
+      try { masterGain.disconnect(); } catch {}
+      try { filter.disconnect(); } catch {}
+      try { audioContext.close(); } catch {} };
+  }, [backgroundMusicEnabled]);
+
+  // Separate effect for volume changes - updates gain without restarting music
+  useEffect(() => {
+    if (masterGainRef.current) {
+      masterGainRef.current.gain.value = backgroundMusicVolume / 100 * 0.2;
+    }
+  }, [backgroundMusicVolume]);
 
   // Battle logic - defined BEFORE hooks that use it
   const handleBattle = useCallback(() => {
     if (competitors.length < 2) return;
 
-    setIsAnimating(true);
+    // Play battle start sound
+    playBattleSound();
+
+    // Set phase first to ensure button text shows "SELECTING..." immediately
     setBattlePhase("selecting");
     setSelectedIndex(0);
+    setIsAnimating(true);
 
     const randomWinner = getRandomWinner();
 
@@ -562,6 +849,9 @@ export default function Home() {
             setLastWinners((prev) => [...prev.slice(-4), randomWinner]);
             setBattlePhase("idle");
             setIsAnimating(false);
+
+            // Play win sound
+            playWinSound();
           }, ANIMATION_CONFIG.REVEAL_HOLD_MS);
         }
       };
@@ -570,7 +860,7 @@ export default function Home() {
     };
 
     runSelectionAnimation();
-  }, [competitors.length, getRandomWinner]);
+  }, [competitors.length, getRandomWinner, playBattleSound, playWinSound]);
 
   // Custom hooks - now handleBattle is defined
   useAutoBattle(autoBattle, isAnimating, nextBattleIn, autoBattleInterval, handleBattle, setNextBattleIn);
@@ -663,10 +953,14 @@ export default function Home() {
   const handleImageUpload = useCallback((index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCompetitors((prev) =>
-        prev.map((c, i) => (i === index ? { ...c, image: url } : c))
-      );
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setCompetitors((prev) =>
+          prev.map((c, i) => (i === index ? { ...c, image: base64String } : c))
+        );
+      };
+      reader.readAsDataURL(file);
     }
   }, []);
 
@@ -712,12 +1006,12 @@ export default function Home() {
         </header>
 
         {/* Battle Arena - Competitors in horizontal row, Battle below */}
-        <div className="flex flex-col items-center gap-8">
+        <div className="flex flex-col items-center gap-1">
           {/* Competitor Cards - Horizontal Row, Centered */}
           <div
             className="flex flex-wrap justify-center items-stretch"
             style={{
-              gap: `${1.5 + cardSize * 0.025}rem`,
+              gap: `${0.5 + cardSize * 0.01}rem`,
             } as React.CSSProperties}
           >
             {competitors.map((competitor, index) => (
@@ -749,8 +1043,8 @@ export default function Home() {
 
           {/* Battle Section - Centered Below */}
           <div className="flex flex-col items-center justify-center relative min-w-0 w-full max-w-md">
-            <div className="relative flex items-center justify-center mb-6 w-full min-h-[220px] pb-4 pt-6">
-              {/* Phase indicator text */}
+            {/* Phase indicator text - positioned above button with proper spacing */}
+            <div className="relative w-full mb-4 min-h-[60px] flex items-start justify-center pt-2">
               {isAnimating && battlePhase === "selecting" && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 text-center animate-pulse" role="status" aria-live="polite">
                   <p className="text-yellow-400 font-bold text-lg bg-gray-900/80 px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
@@ -768,18 +1062,32 @@ export default function Home() {
             </div>
 
             {/* Battle Button */}
-            <div className="flex items-center justify-center px-4 mb-2 w-full">
+            <div className="flex items-center justify-center px-4 mb-1 w-full">
               <button
                 onClick={handleBattle}
                 disabled={isAnimating || competitors.length < 2}
-                className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-bold text-lg rounded-full shadow-lg hover:from-indigo-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full max-w-xs text-center"
+                className={`px-10 py-4 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-bold text-lg rounded-full shadow-lg hover:from-indigo-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full max-w-xs text-center ${isAnimating ? 'animate-pulse' : ''}`}
                 aria-label={isAnimating ? "Battle in progress" : "Start battle"}
               >
                 {isAnimating ? (
-                  <span className="flex items-center justify-center gap-2 animate-pulse">
+                  <span className="flex items-center justify-center gap-2">
                     <span className="animate-bounce">⚔️</span>
-                    <span>BATTLING...</span>
-                    <span className="animate-bounce" style={{animationDelay: '100ms'}}>⚔️</span>
+                    {battlePhase === "selecting" ? (
+                      <>
+                        <span>SELECTING...</span>
+                        <span className="animate-bounce" style={{animationDelay: '100ms'}}>⚔️</span>
+                      </>
+                    ) : battlePhase === "revealing" ? (
+                      <>
+                        <span>WINNER!</span>
+                        <span className="animate-bounce" style={{animationDelay: '100ms'}}>🏆</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>SELECTING...</span>
+                        <span className="animate-bounce" style={{animationDelay: '100ms'}}>⚔️</span>
+                      </>
+                    )}
                   </span>
                 ) : (
                   "⚔️ BATTLE!"
@@ -788,7 +1096,7 @@ export default function Home() {
             </div>
 
             {/* Settings Button */}
-            <div className="flex items-center justify-center mb-2">
+            <div className="flex items-center justify-center mb-1">
               <button
                 onClick={() => setShowSettings(true)}
                 className="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 border border-gray-200 dark:border-gray-700"
@@ -847,6 +1155,12 @@ export default function Home() {
           formatTime={formatTime}
           cardSize={cardSize}
           onCardSizeChange={setCardSize}
+          soundEnabled={soundEnabled}
+          onSoundEnabledToggle={() => setSoundEnabled(!soundEnabled)}
+          backgroundMusicEnabled={backgroundMusicEnabled}
+          onBackgroundMusicEnabledToggle={() => setBackgroundMusicEnabled(!backgroundMusicEnabled)}
+          backgroundMusicVolume={backgroundMusicVolume}
+          onBackgroundMusicVolumeChange={setBackgroundMusicVolume}
         />
 
         {/* Instructions */}

@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { isAllowedImageType } from "@/lib/validation";
 
 // ============================================
 // Types & Constants
@@ -37,7 +39,7 @@ interface CompetitorCardProps {
   cardSize: number;
 }
 
-interface SettingsModalProps {
+interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   autoBattle: boolean;
@@ -68,7 +70,7 @@ const ANIMATION_CONFIG = {
   REVEAL_HOLD_MS: 2000,
 } as const;
 
-// Color theme constants (moved outside component to prevent recreation)
+// Color theme constants
 const COLOR_THEMES = [
   { border: "border-indigo-300 dark:border-indigo-700", bg: "bg-indigo-50 dark:bg-indigo-900", focus: "focus:ring-indigo-500", score: "text-indigo-600 dark:text-indigo-400" },
   { border: "border-pink-300 dark:border-pink-700", bg: "bg-pink-50 dark:bg-pink-900", focus: "focus:ring-pink-500", score: "text-pink-600 dark:text-pink-400" },
@@ -130,17 +132,16 @@ const CompetitorCard = memo(function CompetitorCard({
 }: CompetitorCardProps) {
   // Interpolate values from 0-100 scale
   const t = cardSize / 100;
-  const padding = 0.5 + t * 3.5; // 0.5rem to 4rem
-  const fontSize = 0.75 + t * 0.5; // 0.75rem to 1.25rem
-  const radius = 0.5 + t * 1.5; // 0.5rem to 2rem
-  const scoreScale = 1.125 + t * 1.125; // 1.125rem to 2.25rem
-  const gap = 0.25 + t * 1; // 0.25rem to 1.25rem
-  const margin = 0.25 + t * 0.5; // 0.25rem to 0.75rem (reduced from 0.5-1.5rem)
-  const inputPX = 0.5 + t * 1.5; // 0.5rem to 2rem
-  const inputPY = 0.25 + t * 0.5; // 0.25rem to 0.75rem
-  const minWidth = 140 + t * 340; // 140px to 480px (floor at 140px)
+  const padding = 0.5 + t * 3.5;
+  const fontSize = 0.75 + t * 0.5;
+  const radius = 0.5 + t * 1.5;
+  const scoreScale = 1.125 + t * 1.125;
+  const gap = 0.25 + t * 1;
+  const margin = 0.25 + t * 0.5;
+  const inputPX = 0.5 + t * 1.5;
+  const inputPY = 0.25 + t * 0.5;
+  const minWidth = 140 + t * 340;
 
-  // Use inline styles for dynamic values (Tailwind JIT can't detect template literal classes)
   const cardStyle: React.CSSProperties = {
     padding: `${padding}rem`,
     fontSize: `${fontSize}rem`,
@@ -150,11 +151,10 @@ const CompetitorCard = memo(function CompetitorCard({
     marginBottom: `${margin}rem`,
     flex: '0 0 auto',
   };
-  // Image container - use aspect ratio to maintain proportions
   const imageRadiusStyle: React.CSSProperties = {
     borderRadius: `${radius}rem`,
     width: '100%',
-    aspectRatio: '1 / 1', // Square aspect ratio
+    aspectRatio: '1 / 1',
   };
   const inputStyle: React.CSSProperties = {
     padding: `${inputPY}rem ${inputPX}rem`,
@@ -183,7 +183,7 @@ const CompetitorCard = memo(function CompetitorCard({
 
   return (
     <div
-      className={`relative bg-white dark:bg-gray-800 shadow-lg sm:shadow-xl border-4 transition-all duration-300 ${cardBorder} ${shakeClass} ${selectedGlowClass} ${revealingGlowClass} ${isDragging ? 'opacity-50 rotate-2 shadow-2xl' : ''}`}
+      className={`relative bg-white dark:bg-gray-800 shadow-lg shadow-xl border-4 transition-all duration-300 ${cardBorder} ${shakeClass} ${selectedGlowClass} ${revealingGlowClass} ${isDragging ? 'opacity-50 rotate-2 shadow-2xl' : ''}`}
       style={cardStyle}
       draggable
       onDragStart={onDragStart}
@@ -194,22 +194,23 @@ const CompetitorCard = memo(function CompetitorCard({
       tabIndex={0}
       aria-label={`${competitor.name} card${isWinner ? ', current leader' : ''}`}
     >
-      {/* Remove button (if more than 2 competitors) */}
+      {/* Remove button */}
       {onRemove && (
         <button
           onClick={onRemove}
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500/80 text-white text-sm font-bold hover:bg-red-500 transition-colors flex items-center justify-center z-10"
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500/80 text-white text-sm font-bold hover:bg-red-500 transition-colors flex items-center justify-center z-10 shadow-lg"
           aria-label={`Remove ${competitor.name}`}
         >
           ×
         </button>
       )}
 
-      {/* Leader Badge - shows at top for single clear leader */}
+      {/* Leader Badge */}
       {isWinner && (
-        <div className="flex justify-center mb-3 animate-fade-in" aria-hidden="true">
-          <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
-            🏆 LEADER
+        <div className="flex justify-center mb-4 animate-bounce-in" aria-hidden="true">
+          <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 px-4 py-1.5 rounded-full text-sm font-bold shadow-lg flex items-center gap-2">
+            <span className="animate-bounce">🏆</span>
+            LEADER
           </span>
         </div>
       )}
@@ -221,11 +222,11 @@ const CompetitorCard = memo(function CompetitorCard({
             <img
               src={competitor.image}
               alt={competitor.name}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+              className="object-cover transition-transform duration-300 hover:scale-105"
               loading="lazy"
             />
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
-              <span className="text-white text-base sm:text-lg font-semibold px-3 sm:px-4 py-2 bg-black/50 rounded-full backdrop-blur-sm">
+              <span className="text-white text-sm font-semibold px-4 py-2 bg-black/50 rounded-full backdrop-blur-sm">
                 Change Image
               </span>
             </div>
@@ -249,7 +250,7 @@ const CompetitorCard = memo(function CompetitorCard({
           onChange={(e) => onNameChange(index, e.target.value)}
           placeholder={`Competitor ${index + 1} Name`}
           className={`w-full text-center font-semibold border-2 focus:outline-none focus:ring-2 transition-colors ${inputClasses}`}
-          style={inputStyle}
+          style={{ ...inputStyle, minHeight: '48px' }}
           aria-label={`${competitor.name} name`}
         />
       </div>
@@ -265,7 +266,7 @@ const CompetitorCard = memo(function CompetitorCard({
   );
 });
 
-const SettingsModal = memo(function SettingsModal({
+const SettingsDrawer = memo(function SettingsDrawer({
   isOpen,
   onClose,
   autoBattle,
@@ -286,18 +287,23 @@ const SettingsModal = memo(function SettingsModal({
   onBackgroundMusicEnabledToggle,
   backgroundMusicVolume,
   onBackgroundMusicVolumeChange,
-}: SettingsModalProps) {
+}: SettingsDrawerProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm md:max-w-md bg-white dark:bg-gray-800 shadow-2xl animate-slide-in-right flex flex-col" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="settings-title" className="text-2xl font-bold text-gray-900 dark:text-gray-100">⚙️ Settings</h2>
+        <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm z-10">
+          <h2 id="settings-title" className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">⚙️ Settings</h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center text-lg"
             aria-label="Close settings"
           >
             ✕
@@ -305,30 +311,28 @@ const SettingsModal = memo(function SettingsModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
           {/* Auto Battle Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">🤖 Auto Battle</h3>
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               <input
                 type="checkbox"
                 checked={autoBattle}
                 onChange={onAutoBattleToggle}
-                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 accent-indigo-600"
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 accent-indigo-600 styled"
               />
-              <span className="font-medium text-gray-700 dark:text-gray-300">
-                Enable Auto Battle
-              </span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Enable Auto Battle</span>
             </label>
 
             {autoBattle && (
-              <div className="space-y-3 pl-8">
+              <div className="space-y-3 pl-2 md:pl-8 animate-fade-in">
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Interval:</span>
                   <select
                     value={autoBattleInterval}
                     onChange={(e) => onIntervalChange(Number(e.target.value))}
-                    className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="flex-1 px-3 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[48px] styled"
                     aria-label="Auto battle interval"
                   >
                     {AUTO_BATTLE_INTERVALS.map(({ value, label }) => (
@@ -346,30 +350,26 @@ const SettingsModal = memo(function SettingsModal({
           {/* Sound Section */}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">🔊 Sound</h3>
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               <input
                 type="checkbox"
                 checked={soundEnabled}
                 onChange={onSoundEnabledToggle}
-                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 accent-indigo-600"
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 accent-indigo-600 styled"
               />
-              <span className="font-medium text-gray-700 dark:text-gray-300">
-                Enable Sound Effects
-              </span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Enable Sound Effects</span>
             </label>
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               <input
                 type="checkbox"
                 checked={backgroundMusicEnabled}
                 onChange={onBackgroundMusicEnabledToggle}
-                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 accent-indigo-600"
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 accent-indigo-600 styled"
               />
-              <span className="font-medium text-gray-700 dark:text-gray-300">
-                Enable Background Music
-              </span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Enable Background Music</span>
             </label>
             {backgroundMusicEnabled && (
-              <div className="space-y-3 pl-8">
+              <div className="space-y-3 pl-2 md:pl-8 animate-fade-in">
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-600 dark:text-gray-400 w-24">Volume:</span>
                   <input
@@ -378,17 +378,16 @@ const SettingsModal = memo(function SettingsModal({
                     max="100"
                     value={backgroundMusicVolume}
                     onChange={(e) => onBackgroundMusicVolumeChange(Number(e.target.value))}
-                    className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none accent-indigo-600 cursor-pointer"
+                    className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none accent-indigo-600 cursor-pointer styled"
                   />
                   <span className="text-sm text-gray-500 dark:text-gray-400 w-10 text-right">{backgroundMusicVolume}%</span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Lo-fi ambient battle music
-                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Lo-fi ambient battle music</p>
               </div>
             )}
           </div>
 
+          {/* Battle Timer Section */}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">⏱️ Battle Timer</h3>
             <div className={`p-4 rounded-xl text-center ${
@@ -396,7 +395,7 @@ const SettingsModal = memo(function SettingsModal({
                 ? 'bg-red-500/10 border-2 border-red-500 dark:bg-red-900/20'
                 : 'bg-indigo-500/10 border-2 border-indigo-500 dark:bg-indigo-900/20'
             }`}>
-              <div className="text-3xl font-mono font-bold text-gray-900 dark:text-gray-100" aria-live="polite">
+              <div className="text-3xl md:text-4xl font-mono font-bold text-gray-900 dark:text-gray-100" aria-live="polite">
                 {isBattleTimerRunning ? `⏳ ${formatTime(battleTimerRemaining)}` : '⏱️ Battle Timer'}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -412,7 +411,7 @@ const SettingsModal = memo(function SettingsModal({
                   <button
                     key={minutes}
                     onClick={() => onBattleTimerStart(minutes)}
-                    className="px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors font-medium"
+                    className="px-4 py-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors font-medium min-h-[48px]"
                   >
                     {minutes} min
                   </button>
@@ -423,27 +422,48 @@ const SettingsModal = memo(function SettingsModal({
             {isBattleTimerRunning && (
               <button
                 onClick={onBattleTimerStop}
-                className="w-full px-4 py-3 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors"
+                className="w-full px-4 py-4 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors min-h-[48px]"
               >
                 ⏹️ Stop Battle Timer
               </button>
             )}
           </div>
+
+          {/* Card Size Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">🃏 Card Size</h3>
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-xs text-gray-500 dark:text-gray-400 w-12 text-right">Tiny</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={cardSize}
+                onChange={(e) => onCardSizeChange(Number(e.target.value))}
+                className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none accent-indigo-600 cursor-pointer styled"
+              />
+              <span className="text-xs text-gray-500 dark:text-gray-400 w-12">Huge</span>
+            </div>
+            <div className="text-center text-xs text-gray-500 dark:text-gray-400 font-mono">
+              minWidth: {140 + cardSize * 3.4}px
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+        <div className="p-4 md:p-6 border-t border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm sticky bottom-0">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-pink-700 transition-all shadow-lg min-h-[48px]"
           >
             Done
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 });
+
 
 // ============================================
 // Custom Hooks
@@ -517,49 +537,6 @@ function useBattleTimer(
   }, [isRunning, remaining, setRemaining, setIsRunning, setAutoBattle]);
 }
 
-function useDragAndDrop(
-  competitors: Competitor[],
-  customNames: string[],
-  setCompetitors: React.Dispatch<React.SetStateAction<Competitor[]>>,
-  setCustomNames: React.Dispatch<React.SetStateAction<string[]>>
-) {
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-
-  const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  }, []);
-
-  const handleDrop = useCallback((index: number) => {
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    setCompetitors((prev) => {
-      const newCompetitors = [...prev];
-      [newCompetitors[draggedIndex], newCompetitors[index]] = [newCompetitors[index], newCompetitors[draggedIndex]];
-      return newCompetitors;
-    });
-
-    setCustomNames((prev) => {
-      const newNames = [...prev];
-      [newNames[draggedIndex], newNames[index]] = [newNames[index], newNames[draggedIndex]];
-      return newNames;
-    });
-
-    setDraggedIndex(null);
-  }, [draggedIndex, setCompetitors, setCustomNames]);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedIndex(null);
-  }, []);
-
-  return { draggedIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd };
-}
-
 // ============================================
 // Main Component
 // ============================================
@@ -580,12 +557,23 @@ export default function Home() {
   const [battleTimerRemaining, setBattleTimerRemaining] = useState(0);
   const [isBattleTimerRunning, setIsBattleTimerRunning] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [cardSize, setCardSize] = useState(0); // 0-100 continuous scale - minimized for Android to show at least two cards side by side
+  const [cardSize, setCardSize] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(false);
   const [backgroundMusicVolume, setBackgroundMusicVolume] = useState(30);
+  const [isMobile, setIsMobile] = useState(false);
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
 
-  // Load battle state from localStorage on initial render
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  
+  // Load battle state from localStorage
   useEffect(() => {
     try {
       const savedCompetitors = localStorage.getItem('battleCompetitors');
@@ -593,37 +581,24 @@ export default function Home() {
       const savedWinner = localStorage.getItem('battleWinner');
       const savedLastWinners = localStorage.getItem('battleLastWinners');
       const savedSoundEnabled = localStorage.getItem('battleSoundEnabled');
-
-      if (savedCompetitors) {
-        setCompetitors(JSON.parse(savedCompetitors));
-      }
-      if (savedCustomNames) {
-        setCustomNames(JSON.parse(savedCustomNames));
-      }
-      if (savedWinner) {
-        setWinner(JSON.parse(savedWinner));
-      }
-      if (savedLastWinners) {
-        setLastWinners(JSON.parse(savedLastWinners));
-      }
-      if (savedSoundEnabled !== null) {
-        setSoundEnabled(JSON.parse(savedSoundEnabled));
-      }
+      const savedCardSize = localStorage.getItem('battleCardSize');
       const savedBackgroundMusicEnabled = localStorage.getItem('battleBackgroundMusicEnabled');
       const savedBackgroundMusicVolume = localStorage.getItem('battleBackgroundMusicVolume');
-      if (savedBackgroundMusicEnabled !== null) {
-        setBackgroundMusicEnabled(JSON.parse(savedBackgroundMusicEnabled));
-      }
-      if (savedBackgroundMusicVolume !== null) {
-        setBackgroundMusicVolume(JSON.parse(savedBackgroundMusicVolume));
-      }
-    } catch (error) {
-      console.error('Failed to load battle state from localStorage:', error);
-      // Fallback to default state (useState initializers will handle this)
-    }
-  }, []); // Empty deps - run once on mount
 
-  // Save battle state to localStorage whenever relevant state changes
+      if (savedCompetitors) setCompetitors(JSON.parse(savedCompetitors));
+      if (savedCustomNames) setCustomNames(JSON.parse(savedCustomNames));
+      if (savedWinner) setWinner(JSON.parse(savedWinner));
+      if (savedLastWinners) setLastWinners(JSON.parse(savedLastWinners));
+      if (savedSoundEnabled !== null) setSoundEnabled(JSON.parse(savedSoundEnabled));
+      if (savedCardSize !== null) setCardSize(JSON.parse(savedCardSize));
+      if (savedBackgroundMusicEnabled !== null) setBackgroundMusicEnabled(JSON.parse(savedBackgroundMusicEnabled));
+      if (savedBackgroundMusicVolume !== null) setBackgroundMusicVolume(JSON.parse(savedBackgroundMusicVolume));
+    } catch (error) {
+      console.error('Failed to load battle state:', error);
+    }
+  }, []);
+
+  // Save battle state to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('battleCompetitors', JSON.stringify(competitors));
@@ -631,23 +606,13 @@ export default function Home() {
       localStorage.setItem('battleWinner', JSON.stringify(winner));
       localStorage.setItem('battleLastWinners', JSON.stringify(lastWinners));
       localStorage.setItem('battleSoundEnabled', JSON.stringify(soundEnabled));
+      localStorage.setItem('battleCardSize', JSON.stringify(cardSize));
       localStorage.setItem('battleBackgroundMusicEnabled', JSON.stringify(backgroundMusicEnabled));
       localStorage.setItem('battleBackgroundMusicVolume', JSON.stringify(backgroundMusicVolume));
-
-      // Debug: Log when saving
-      console.log('Battle state saved to localStorage:', {
-        competitorsCount: competitors.length,
-        hasCustomNames: customNames.length > 0,
-        winner: winner,
-        lastWinnersLength: lastWinners.length,
-        soundEnabled: soundEnabled,
-        backgroundMusicEnabled: backgroundMusicEnabled,
-        backgroundMusicVolume: backgroundMusicVolume
-      });
     } catch (error) {
-      console.error('Failed to save battle state to localStorage:', error);
+      console.error('Failed to save battle state:', error);
     }
-  }, [competitors, customNames, winner, lastWinners, soundEnabled, backgroundMusicEnabled, backgroundMusicVolume]);
+  }, [competitors, customNames, winner, lastWinners, soundEnabled, cardSize, backgroundMusicEnabled, backgroundMusicVolume]);
 
   // Derived state
   const { isWinner, getRandomWinner } = useBattleLogic(competitors, lastWinners);
@@ -657,18 +622,19 @@ export default function Home() {
     if (typeof window === 'undefined' || !soundEnabled) return;
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Resume if suspended (required by browser autoplay policy)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.value = 330; // E4 note (lower pitch for battle start)
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime); // start from 0
-      gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 0.01); // attack
-      gainNode.gain.setValueAtTime(0.4, audioContext.currentTime + 0.05); // hold
-      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.06); // release
-
+      oscillator.frequency.value = 330;
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 0.01);
+      gainNode.gain.setValueAtTime(0.4, audioContext.currentTime + 0.05);
+      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.06);
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.06);
     } catch (e) {
@@ -680,6 +646,10 @@ export default function Home() {
     if (typeof window === 'undefined' || !soundEnabled) return;
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Resume if suspended (required by browser autoplay policy)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
       const playNote = (freq: number, time: number) => {
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
@@ -694,62 +664,44 @@ export default function Home() {
         oscillator.stop(time + 0.11);
       };
       const now = audioContext.currentTime;
-      playNote(523.25, now); // C5
-      playNote(659.25, now + 0.12); // E5
-      playNote(783.99, now + 0.24); // G5
-      playNote(987.77, now + 0.36); // B5 (added fourth note for more triumphant sound)
+      playNote(523.25, now);
+      playNote(659.25, now + 0.12);
+      playNote(783.99, now + 0.24);
+      playNote(987.77, now + 0.36);
     } catch (e) {
       console.warn('Failed to play win sound', e);
     }
   }, [soundEnabled]);
 
-  // Background music - simple lo-fi ambient track
-  // Use refs to persist audio nodes across renders for smooth volume changes
+  // Background music
   const audioContextRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const lfoRef = useRef<OscillatorNode | null>(null);
   const detuneLfoRef = useRef<OscillatorNode | null>(null);
 
-  // Initialize/start background music
   useEffect(() => {
-    if (typeof window === 'undefined' || !backgroundMusicEnabled) {
-      console.log('[BackgroundMusic] Effect skipped:', { window: typeof window, backgroundMusicEnabled });
-      return;
-    }
-
-    console.log('[BackgroundMusic] Starting music, volume:', backgroundMusicVolume);
+    if (typeof window === 'undefined' || !backgroundMusicEnabled) return;
 
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     audioContextRef.current = audioContext;
 
-    // Resume audio context if suspended (browser autoplay policy)
     if (audioContext.state === 'suspended') {
-      console.log('[BackgroundMusic] Resuming suspended audio context');
-      audioContext.resume().then(() => console.log('[BackgroundMusic] Audio context resumed'));
+      audioContext.resume();
     }
 
-    console.log('[BackgroundMusic] Audio context state:', audioContext.state);
-
-    // Master gain for volume control
     const masterGain = audioContext.createGain();
-    masterGain.gain.value = backgroundMusicVolume / 100 * 0.2; // Slightly louder
+    masterGain.gain.value = backgroundMusicVolume / 100 * 0.2;
     masterGainRef.current = masterGain;
 
-    // Lowpass filter for warmer sound
     const filter = audioContext.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 600;
     filter.Q.value = 1;
-
-    // Correct signal chain: masterGain -> filter -> destination
     masterGain.connect(filter);
     filter.connect(audioContext.destination);
 
-    // Create multiple oscillators for ambient chord
     const oscillators: OscillatorNode[] = [];
-    const oscGains: GainNode[] = [];
-    // A minor pentatonic: A2, C3, E3, A3 (110, 130.81, 164.81, 220)
     const frequencies = [110, 130.81, 164.81, 220];
 
     frequencies.forEach((freq) => {
@@ -759,65 +711,52 @@ export default function Home() {
       oscGain.connect(masterGain);
       osc.frequency.value = freq;
       osc.type = 'sine';
-      oscGain.gain.value = 0.02; // Slightly louder per oscillator
+      oscGain.gain.value = 0.02;
       osc.start();
       oscillators.push(osc);
-      oscGains.push(oscGain);
     });
     oscillatorsRef.current = oscillators;
 
-    // Very slow LFO for gentle amplitude modulation
     const lfo = audioContext.createOscillator();
     const lfoGain = audioContext.createGain();
     lfo.connect(lfoGain);
     lfoGain.connect(masterGain.gain);
-    lfo.frequency.value = 0.05; // Very slow (20 second cycle)
+    lfo.frequency.value = 0.05;
     lfo.type = 'sine';
     lfoGain.gain.value = 0.01;
     lfo.start();
     lfoRef.current = lfo;
 
-    // Slight detune LFO for organic feel
     const detuneLfo = audioContext.createOscillator();
     const detuneGain = audioContext.createGain();
     detuneLfo.connect(detuneGain);
     detuneLfo.frequency.value = 0.03;
     detuneLfo.type = 'triangle';
-    detuneGain.gain.value = 8; // cents
-    oscillators.forEach((osc) => {
-      detuneGain.connect(osc.frequency);
-    });
+    detuneGain.gain.value = 8;
+    oscillators.forEach((osc) => detuneGain.connect(osc.frequency));
     detuneLfo.start();
     detuneLfoRef.current = detuneLfo;
 
-    // Cleanup
     return () => {
       oscillators.forEach(osc => { try { osc.stop(); } catch {} });
-      oscGains.forEach(g => { try { g.disconnect(); } catch {} });
       try { lfo.stop(); } catch {}
-      try { lfoGain.disconnect(); } catch {}
       try { detuneLfo.stop(); } catch {}
-      try { detuneGain.disconnect(); } catch {}
       try { masterGain.disconnect(); } catch {}
       try { filter.disconnect(); } catch {}
       try { audioContext.close(); } catch {} };
   }, [backgroundMusicEnabled]);
 
-  // Separate effect for volume changes - updates gain without restarting music
   useEffect(() => {
     if (masterGainRef.current) {
       masterGainRef.current.gain.value = backgroundMusicVolume / 100 * 0.2;
     }
   }, [backgroundMusicVolume]);
 
-  // Battle logic - defined BEFORE hooks that use it
+  // Battle logic
   const handleBattle = useCallback(() => {
     if (competitors.length < 2) return;
 
-    // Play battle start sound
     playBattleSound();
-
-    // Set phase first to ensure button text shows "SELECTING..." immediately
     setBattlePhase("selecting");
     setSelectedIndex(0);
     setIsAnimating(true);
@@ -849,8 +788,6 @@ export default function Home() {
             setLastWinners((prev) => [...prev.slice(-4), randomWinner]);
             setBattlePhase("idle");
             setIsAnimating(false);
-
-            // Play win sound
             playWinSound();
           }, ANIMATION_CONFIG.REVEAL_HOLD_MS);
         }
@@ -862,11 +799,10 @@ export default function Home() {
     runSelectionAnimation();
   }, [competitors.length, getRandomWinner, playBattleSound, playWinSound]);
 
-  // Custom hooks - now handleBattle is defined
   useAutoBattle(autoBattle, isAnimating, nextBattleIn, autoBattleInterval, handleBattle, setNextBattleIn);
   useBattleTimer(isBattleTimerRunning, battleTimerRemaining, setBattleTimerRemaining, setIsBattleTimerRunning, setAutoBattle);
 
-  // Drag and drop handlers
+  // Drag and drop
   const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
@@ -953,6 +889,11 @@ export default function Home() {
   const handleImageUpload = useCallback((index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (!isAllowedImageType(file)) {
+        alert("Invalid file type. Please upload JPEG, PNG, WebP, or GIF images only.");
+        event.target.value = "";
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
@@ -965,6 +906,7 @@ export default function Home() {
   }, []);
 
   const handleAddCompetitor = useCallback(() => {
+    if (competitors.length >= 6) return;
     const newIndex = competitors.length;
     setCompetitors((prev) => [...prev, { name: `Competitor ${newIndex + 1}`, image: `https://picsum.photos/seed/competitor${newIndex + 1}/400/400`, score: 0, colorIndex: newIndex % 6 }]);
     setCustomNames((prev) => [...prev, ""]);
@@ -976,7 +918,6 @@ export default function Home() {
     setCustomNames((prev) => prev.filter((_, i) => i !== index));
   }, [competitors.length]);
 
-  // Memoized input classes to avoid string construction on every render
   const getInputClasses = useCallback((colorIndex: number) => {
     const theme = COLOR_THEMES[colorIndex % COLOR_THEMES.length];
     const borderClass = theme.border.replace('border-', '').replace('dark:border-', 'dark:border-');
@@ -985,34 +926,38 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 py-12 px-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 py-8 px-4 safe-top safe-bottom">
+      <div className="container">
         {/* Back Button */}
         <Link
           href="/"
-          className="inline-flex items-center gap-2 mb-8 px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700"
+          className="inline-flex items-center gap-2 mb-6 md:mb-8 px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 min-h-[48px]"
         >
           ← Back to Games
         </Link>
 
         {/* Header */}
-        <header className="text-center mb-12">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent mb-4">
+        <header className="text-center mb-8 md:mb-12 animate-fade-in-up">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gradient-battle mb-3">
             Character Battle Arena
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300">
-            Upload characters, customize names, and let them battle!
+          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Upload characters, customize names, and let them battle with automatic scoring!
           </p>
         </header>
 
-        {/* Battle Arena - Competitors in horizontal row, Battle below */}
+        {/* Battle Arena - Main Layout */}
         <div className="flex flex-col items-center gap-1">
-          {/* Competitor Cards - Horizontal Row, Centered */}
+          {/* Competitor Cards - Horizontal Scroll on Mobile, Grid on Desktop */}
           <div
-            className="flex flex-wrap justify-center items-stretch"
+            ref={cardsContainerRef}
+            className="flex flex-wrap justify-center items-stretch w-full overflow-x-auto scrollbar-hide pb-4 md:pb-0 -mx-4 md:mx-0 px-4 md:px-0"
             style={{
               gap: `${0.5 + cardSize * 0.01}rem`,
+              scrollSnapType: 'x mandatory',
             } as React.CSSProperties}
+            role="region"
+            aria-label="Competitors"
           >
             {competitors.map((competitor, index) => (
               <CompetitorCard
@@ -1041,20 +986,29 @@ export default function Home() {
             ))}
           </div>
 
+          {/* Mobile Scroll Indicator */}
+          {isMobile && competitors.length > 2 && (
+            <div className="flex justify-center gap-2 mb-4 animate-pulse-soft" role="status" aria-label="Scroll for more competitors">
+              <span className="w-2 h-2 rounded-full bg-indigo-500/50" />
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span className="w-2 h-2 rounded-full bg-indigo-500/50" />
+            </div>
+          )}
+
           {/* Battle Section - Centered Below */}
           <div className="flex flex-col items-center justify-center relative min-w-0 w-full max-w-md">
-            {/* Phase indicator text - positioned above button with proper spacing */}
-            <div className="relative w-full mb-4 min-h-[60px] flex items-start justify-center pt-2">
+            {/* Phase indicator */}
+            <div className="relative w-full mb-4 min-h-[60px] md:min-h-[80px] flex items-start justify-center pt-2">
               {isAnimating && battlePhase === "selecting" && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 text-center animate-pulse" role="status" aria-live="polite">
-                  <p className="text-yellow-400 font-bold text-lg bg-gray-900/80 px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 text-center animate-pulse-soft" role="status" aria-live="polite">
+                  <p className="text-yellow-400 font-bold text-lg md:text-xl bg-gray-900/80 px-4 py-2 rounded-full shadow-lg whitespace-nowrap animate-bounce-in">
                     ⚡ SELECTING CHALLENGER...
                   </p>
                 </div>
               )}
               {isAnimating && battlePhase === "revealing" && winner !== null && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 text-center animate-fade-in" role="status" aria-live="polite">
-                  <p className="text-yellow-400 font-bold text-lg bg-gray-900/80 px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
+                  <p className="text-yellow-400 font-bold text-lg md:text-xl bg-gray-900/80 px-4 py-2 rounded-full shadow-lg whitespace-nowrap animate-bounce-in">
                     🏆 {competitors[winner].name} WINS!
                   </p>
                 </div>
@@ -1062,11 +1016,12 @@ export default function Home() {
             </div>
 
             {/* Battle Button */}
-            <div className="flex items-center justify-center px-4 mb-1 w-full">
+            <div className="flex items-center justify-center px-4 mb-2 md:mb-4 w-full">
               <button
                 onClick={handleBattle}
                 disabled={isAnimating || competitors.length < 2}
-                className={`px-10 py-4 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-bold text-lg rounded-full shadow-lg hover:from-indigo-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full max-w-xs text-center ${isAnimating ? 'animate-pulse' : ''}`}
+                className={`px-8 md:px-12 py-4 md:py-5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-bold text-lg md:text-xl rounded-full shadow-xl hover:from-indigo-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full max-w-xs text-center ${isAnimating ? 'animate-pulse-soft' : ''}`}
+                style={{ minHeight: '56px' }}
                 aria-label={isAnimating ? "Battle in progress" : "Start battle"}
               >
                 {isAnimating ? (
@@ -1095,43 +1050,66 @@ export default function Home() {
               </button>
             </div>
 
+            {/* Auto Battle Countdown */}
+            {autoBattle && !isAnimating && (
+              <div className="mb-2 md:mb-4 text-center animate-fade-in">
+                <span className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 rounded-full text-indigo-700 dark:text-indigo-300 text-sm font-mono">
+                  ⏱️ Next battle in: {nextBattleIn}s
+                </span>
+              </div>
+            )}
+
             {/* Settings Button */}
-            <div className="flex items-center justify-center mb-1">
+            <div className="flex items-center justify-center mb-2 md:mb-4">
               <button
                 onClick={() => setShowSettings(true)}
-                className="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 border border-gray-200 dark:border-gray-700"
+                className="px-6 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 border border-gray-200 dark:border-gray-700 shadow-md min-h-[48px]"
               >
                 ⚙️ Settings
               </button>
             </div>
 
-            {/* Card Size Slider - Below Settings */}
-            <div className="flex items-center justify-center gap-3 w-full max-w-xs mb-2 px-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400 w-12 text-right">Tiny</span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={cardSize}
-                onChange={(e) => setCardSize(Number(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none accent-indigo-600 cursor-pointer"
-              />
-              <span className="text-xs text-gray-500 dark:text-gray-400 w-12">Huge</span>
-            </div>
-            <div className="text-center text-xs text-gray-500 dark:text-gray-400 mb-4 font-mono">
-              cardSize={cardSize} → minWidth={140 + cardSize * 3.4}px | gap={0.25 + cardSize * 0.01}rem
+            {/* Open Tools Button */}
+            <div className="flex items-center justify-center mb-2 md:mb-4">
+              <Link
+                href="/tools"
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-pink-700 transition-all flex items-center gap-2 shadow-lg min-h-[48px]"
+              >
+                🛠️ Open Tools
+              </Link>
             </div>
 
-            <div className="flex items-center justify-center gap-3 w-full flex-wrap px-2">
+            {/* Card Size Slider - Mobile only, in drawer on desktop */}
+            {isMobile && (
+              <div className="flex items-center justify-center gap-3 w-full max-w-xs mb-4 px-2 animate-fade-in">
+                <span className="text-xs text-gray-500 dark:text-gray-400 w-12 text-right">Tiny</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={cardSize}
+                  onChange={(e) => setCardSize(Number(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none accent-indigo-600 cursor-pointer styled"
+                />
+                <span className="text-xs text-gray-500 dark:text-gray-400 w-12">Huge</span>
+              </div>
+            )}
+
+            <div className="text-center text-xs text-gray-500 dark:text-gray-400 mb-4 md:mb-6 font-mono hidden md:block">
+              cardSize={cardSize} → minWidth={140 + cardSize * 3.4}px
+            </div>
+
+            <div className="flex items-center justify-center gap-3 w-full flex-wrap px-2 md:px-0">
               <button
                 onClick={handleReset}
-                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors whitespace-nowrap"
+                className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors whitespace-nowrap min-h-[44px]"
               >
                 Reset Scores
               </button>
               <button
                 onClick={handleAddCompetitor}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap"
+                disabled={competitors.length >= 6}
+                className="px-4 py-2.5 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
               >
                 + Add Competitor
               </button>
@@ -1139,8 +1117,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Settings Modal */}
-        <SettingsModal
+        {/* Settings Drawer */}
+        <SettingsDrawer
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           autoBattle={autoBattle}
@@ -1164,18 +1142,22 @@ export default function Home() {
         />
 
         {/* Instructions */}
-        <div className="mt-12 p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">How to Play</h3>
-          <ul className="space-y-2 text-gray-600 dark:text-gray-300">
-            <li>• Click on character images to upload your own photos</li>
-            <li>• Edit names by typing in the input fields below each character</li>
-            <li>• Click "BATTLE!" to randomly select a winner</li>
-            <li>• Winner's score increases by 1 point</li>
-            <li>• No competitor can win 5 times in a row!</li>
-            <li>• Click "Reset Scores" to start fresh</li>
-            <li>• Add more competitors with "+ Add Competitor" (max 6)</li>
-            <li>• Remove competitors with the × button (minimum 2)</li>
-            <li>• Drag and drop cards to reorder</li>
+        <div className="mt-8 md:mt-12 p-6 rounded-2xl glass border border-white/20 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+            <span>📖</span> How to Play
+          </h3>
+          <ul className="space-y-2 text-gray-600 dark:text-gray-300 text-sm md:text-base">
+            <li className="flex items-start gap-2">• Click on character images to upload your own photos</li>
+            <li className="flex items-start gap-2">• Edit names by typing in the input fields below each character</li>
+            <li className="flex items-start gap-2">• Click "BATTLE!" to randomly select a winner</li>
+            <li className="flex items-start gap-2">• Winner's score increases by 1 point</li>
+            <li className="flex items-start gap-2">• No competitor can win 5 times in a row!</li>
+            <li className="flex items-start gap-2">• Click "Reset Scores" to start fresh</li>
+            <li className="flex items-start gap-2">• Add more competitors with "+ Add Competitor" (max 6)</li>
+            <li className="flex items-start gap-2">• Remove competitors with the × button (minimum 2)</li>
+            <li className="flex items-start gap-2">• Drag and drop cards to reorder (desktop)</li>
+            <li className="flex items-start gap-2">• Swipe horizontally to see all competitors (mobile)</li>
+            <li className="flex items-start gap-2">• Enable Auto Battle in Settings for continuous battles</li>
           </ul>
         </div>
       </div>

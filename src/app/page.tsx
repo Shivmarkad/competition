@@ -8,120 +8,200 @@ interface Game {
   description: string;
   icon: string;
   href: string;
+  gradient: string;
   color: string;
+  features: string[];
 }
 
 const GAMES: Game[] = [
   {
     id: "battle-arena",
     title: "Battle Arena",
-    description: "Upload characters and let them battle! Automatic scoring and winner selection.",
+    description: "Upload characters, customize names, and let them battle with automatic scoring!",
     icon: "⚔️",
     href: "/games/battle-arena",
-    color: "from-indigo-500 to-pink-500",
+    gradient: "gradient-battle",
+    color: "battle",
+    features: ["Auto Battle", "Sound Effects", "Drag & Drop", "Local Storage"],
   },
   {
     id: "dice-spinner",
     title: "Dice Spinner",
-    description: "Roll multiple dice with animations. Perfect for board games and battles!",
+    description: "Roll multiple 3D dice with realistic physics. Perfect for board games and battles!",
     icon: "🎲",
     href: "/games/dice-spinner",
-    color: "from-emerald-500 to-teal-500",
+    gradient: "gradient-dice",
+    color: "dice",
+    features: ["3D Animation", "Up to 10 Dice", "Auto Total", "Haptic Feedback"],
   },
   {
     id: "match-columns",
     title: "Match Columns",
-    description: "Drop pieces and match colors vertically. Classic connect-style gameplay!",
+    description: "Classic Connect-4 gameplay. Drop pieces and connect four to win!",
     icon: "🔴",
     href: "/games/match-columns",
-    color: "from-amber-500 to-orange-500",
+    gradient: "gradient-match",
+    color: "match",
+    features: ["Win Detection", "Draw Detection", "Smooth Animation", "New Game Reset"],
   },
+  {
+    id: "tools",
+    title: "Tools Hub",
+    description: "Character Creator, Tournament Brackets, Score Tracker, Custom Rules & Battle Replay.",
+    icon: "🛠️",
+    href: "/tools",
+    gradient: "gradient-battle",
+    color: "battle",
+    features: ["Character Creator", "Tournaments", "Score History", "Custom Rules"],
+  },
+];
+
+const FEATURES = [
+  { icon: "📱", title: "Mobile First", desc: "Optimized for all screen sizes" },
+  { icon: "🎨", title: "Beautiful Design", desc: "Modern UI with smooth animations" },
+  { icon: "⚡", title: "Fast & Lightweight", desc: "Built with Next.js 16 & React 19" },
+  { icon: "🔊", title: "Sound & Haptics", desc: "Immersive audio & tactile feedback" },
+  { icon: "💾", title: "Persistent State", desc: "Games save automatically" },
+  { icon: "♿", title: "Accessible", desc: "WCAG AA compliant, reduced motion" },
 ];
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-12 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-12 px-4 safe-top safe-bottom">
+      <div className="container">
+        {/* Animated Background Elements */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '0s' }} />
+          <div className="absolute top-40 right-20 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+          <div className="absolute bottom-40 left-1/4 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
+          <div className="absolute bottom-20 right-10 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '3s' }} />
+        </div>
+
         {/* Header */}
-        <header className="text-center mb-16">
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-            🎮 Game Hub
+        <header className="relative text-center mb-16 animate-fade-in-up">
+          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full glass border border-white/20 mb-6 animate-scale-in stagger-1">
+            <span className="text-2xl">🎮</span>
+            <span className="font-semibold text-gray-700 dark:text-gray-300">Game Hub</span>
+          </div>
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gradient-battle mb-6 animate-fade-in-up stagger-2">
+            Play Games
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300">
-            Choose your game and start playing!
+          <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto animate-fade-in-up stagger-3">
+            Three unique games. Zero installs. Pure fun.
           </p>
         </header>
 
         {/* Games Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {GAMES.map((game) => (
-            <Link
-              key={game.id}
-              href={game.href}
-              className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border border-gray-200 dark:border-gray-700"
-            >
-              {/* Gradient Background */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${game.color} opacity-5 group-hover:opacity-10 transition-opacity`} />
+        <main className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
+            {GAMES.map((game, index) => (
+              <article
+                key={game.id}
+                className="group relative overflow-hidden rounded-2xl glass-strong border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 animate-fade-in-up"
+                style={{ animationDelay: `${100 + index * 100}ms` }}
+              >
+                {/* Gradient Mesh Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent" />
+                <div className={`absolute inset-0 ${game.gradient} opacity-5 group-hover:opacity-10 transition-opacity duration-500`} />
 
-              {/* Content */}
-              <div className="relative p-8">
-                {/* Icon */}
-                <div className="text-6xl mb-4 transform group-hover:scale-110 transition-transform">
-                  {game.icon}
+                {/* Shimmer Effect */}
+                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                {/* Content */}
+                <div className="relative p-6 md:p-8 flex flex-col h-full">
+                  {/* Icon with floating animation */}
+                  <div className="relative mb-6">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-lg animate-float">
+                      <span className="text-5xl group-hover:rotate-12 transition-transform duration-300">{game.icon}</span>
+                    </div>
+                    {/* Pulse ring */}
+                    <div className="absolute inset-0 rounded-2xl border-2 border-current/20 animate-ping-slow" style={{ borderColor: `var(--${game.color}-primary)` }} />
+                  </div>
+
+                  {/* Title */}
+                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r">
+                    {game.title}
+                  </h2>
+
+                  {/* Description */}
+                  <p className="text-gray-600 dark:text-gray-400 mb-6 flex-1 line-clamp-3">
+                    {game.description}
+                  </p>
+
+                  {/* Features */}
+                  <ul className="space-y-2 mb-6" role="list" aria-label={`${game.title} features`}>
+                    {game.features.map((feature, i) => (
+                      <li key={i} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors">
+                        <span className="w-5 h-5 rounded-full bg-current/10 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `var(--${game.color}-primary)`, color: `var(--${game.color}-primary)` }}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Play Button */}
+                  <Link
+                    href={game.href}
+                    className={`inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-white transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg ${game.gradient} group-hover:shadow-xl`}
+                    style={{ boxShadow: `0 10px 30px -10px var(--${game.color}-glow)` }}
+                  >
+                    <span>Play Now</span>
+                    <span className="group-hover:translate-x-1 transition-transform">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </span>
+                  </Link>
                 </div>
-
-                {/* Title */}
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-                  {game.title}
-                </h2>
-
-                {/* Description */}
-                <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                  {game.description}
-                </p>
-
-                {/* Play Button */}
-                <div className={`inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r ${game.color} text-white font-semibold rounded-lg group-hover:gap-3 transition-all`}>
-                  <span>Play Now</span>
-                  <span className="group-hover:translate-x-1 transition-transform">→</span>
-                </div>
-              </div>
-
-              {/* Shine Effect on Hover */}
-              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-            </Link>
-          ))}
-        </div>
-
-        {/* Features */}
-        <div className="mt-16 p-8 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-200 dark:border-gray-700">
-          <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6 text-center">
-            ✨ Features
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-4xl mb-3">📱</div>
-              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Mobile Ready</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Optimized for Android devices
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl mb-3">🎨</div>
-              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Beautiful Design</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Modern UI with smooth animations
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl mb-3">🎯</div>
-              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Easy to Play</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Simple controls for all ages
-              </p>
-            </div>
+              </article>
+            ))}
           </div>
-        </div>
+
+          {/* Features Section */}
+          <section className="relative animate-fade-in-up" style={{ animationDelay: '400ms' }}>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                Why Game Hub?
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Built with modern web technologies for the best experience
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {FEATURES.map((feature, index) => (
+                <div
+                  key={feature.title}
+                  className="group p-6 rounded-2xl glass border border-white/20 hover:border-white/40 transition-all duration-300 text-center animate-fade-in-up"
+                  style={{ animationDelay: `${500 + index * 100}ms` }}
+                >
+                  <div className="text-4xl mb-4 animate-float" style={{ animationDelay: `${index * 0.5}s` }}>
+                    {feature.icon}
+                  </div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r">
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {feature.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="mt-20 text-center animate-fade-in-up" style={{ animationDelay: '800ms' }}>
+            <p className="text-gray-500 dark:text-gray-500 text-sm">
+              Made with Next.js 16, React 19 & Tailwind CSS 4
+            </p>
+            <p className="text-gray-400 dark:text-gray-600 text-xs mt-2">
+              Open source • No tracking • Works offline
+            </p>
+          </footer>
+        </main>
       </div>
     </div>
   );

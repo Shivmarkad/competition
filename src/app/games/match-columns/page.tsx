@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { AdSenseBanner } from "@/components/ads";
 
 type CellValue = "empty" | "red" | "yellow";
 type Board = CellValue[][];
@@ -357,6 +358,11 @@ export default function MatchColumns() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* AdSense Banner */}
+        <div className="my-8 md:my-12 animate-fade-in-up" role="complementary" aria-label="Advertisement">
+          <AdSenseBanner className="w-full max-w-4xl mx-auto" />
         </div>
 
         {/* Instructions */}

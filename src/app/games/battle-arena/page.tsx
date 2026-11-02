@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { isAllowedImageType } from "@/lib/validation";
+import { AdSenseBanner } from "@/components/ads";
 
 // ============================================
 // Types & Constants
@@ -487,6 +487,9 @@ function useBattleLogic(competitors: Competitor[], lastWinners: number[]) {
     }
     return Math.floor(Math.random() * competitors.length);
   }, [competitors.length, lastWinners]);
+
+  // Generate random index for confetti (moved to useMemo to avoid impure function in render)
+  const confettiSeed = useMemo(() => Math.random(), []);
 
   return { maxScore, leadingIndices, isWinner, getRandomWinner };
 }
@@ -1115,6 +1118,11 @@ export default function Home() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* AdSense Banner */}
+        <div className="my-8 md:my-12 animate-fade-in-up" role="complementary" aria-label="Advertisement">
+          <AdSenseBanner className="w-full max-w-4xl mx-auto" />
         </div>
 
         {/* Settings Drawer */}

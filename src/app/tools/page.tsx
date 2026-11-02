@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AdSenseBanner } from "@/components/ads";
 
 interface Tool {
   id: string;
@@ -173,6 +174,11 @@ export default function ToolsHub() {
                 </div>
               </article>
             ))}
+          </div>
+
+          {/* AdSense Banner */}
+          <div className="my-12 animate-fade-in-up" role="complementary" aria-label="Advertisement">
+            <AdSenseBanner className="w-full max-w-4xl mx-auto" />
           </div>
 
           {/* Quick Actions */}

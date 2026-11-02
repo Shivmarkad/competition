@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AdSenseBanner } from "@/components/ads";
 
 interface Game {
   id: string;
@@ -158,6 +159,11 @@ export default function Home() {
                 </div>
               </article>
             ))}
+          </div>
+
+          {/* AdSense Banner */}
+          <div className="my-12 animate-fade-in-up" style={{ animationDelay: '350ms' }} role="complementary" aria-label="Advertisement">
+            <AdSenseBanner className="w-full max-w-4xl mx-auto" />
           </div>
 
           {/* Features Section */}

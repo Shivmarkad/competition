@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { CookieConsent } from "@/components/ads/CookieConsent";
+import { AdSenseAuto } from "@/components/ads/AdSenseAuto";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,13 +15,15 @@ const geistMono = Geist_Mono({
 });
 
 // CSP for static export - inline script/style needed for Next.js hydration
+// Added Google AdSense domains for ads
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires unsafe-inline/eval for hydration
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com", // Next.js + AdSense
   "style-src 'self' 'unsafe-inline'", // Tailwind CSS uses inline styles
-  "img-src 'self' data: blob: https://picsum.photos", // Allow data URLs, blob URLs, and picsum for placeholders
+  "img-src 'self' data: blob: https://picsum.photos https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net", // Allow ad images
   "font-src 'self' data: https://fonts.gstatic.com", // Google Fonts
-  "connect-src 'self'", // No external API calls
+  "connect-src 'self' https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net", // AdSense connections
+  "frame-src 'self' https://googleads.g.doubleclick.net https://tpc.googlesyndication.com", // Ad iframes
   "frame-ancestors 'none'", // Prevent embedding
   "base-uri 'self'",
   "form-action 'self'",
@@ -40,7 +44,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta httpEquiv="Content-Security-Policy" content={CSP} />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <CookieConsent />
+        <AdSenseAuto />
+      </body>
     </html>
   );
 }

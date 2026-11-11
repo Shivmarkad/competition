@@ -128,15 +128,19 @@ export default function DiceSpinner() {
 
   const getDieFace = (value: number) => DICE_FACES[value - 1] || "⚀";
 
-  // Generate confetti pieces
-  const confettiPieces = Array.from({ length: 30 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    color: ['#ef4444', '#f97316', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'][Math.floor(Math.random() * 7)],
-    delay: Math.random() * 0.5,
-    duration: 1 + Math.random() * 1,
-    size: 6 + Math.random() * 10,
-  }));
+  // Generate confetti pieces once using state to avoid impure function in render
+  const [confettiPieces] = useState(() => {
+    const colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
+    return Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 0.5,
+      duration: 1 + Math.random() * 1,
+      size: 6 + Math.random() * 10,
+      isRound: Math.random() > 0.5,
+    }));
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4 safe-top safe-bottom">
@@ -178,18 +182,18 @@ export default function DiceSpinner() {
 
         {/* Confetti */}
         {showConfetti && (
-          <div className="fixed inset-0 pointer-events-none z-50" aria-hidden="true">
+          <div className="fixed inset-0 pointer-events-none z-50" aria-label="Celebration confetti" aria-hidden="true">
             {confettiPieces.map((piece) => (
               <div
                 key={piece.id}
-                className="absolute top-0 w-2 h-2 rounded transform"
+                className="absolute top-0 w-2 h-2 transform"
                 style={{
                   left: `${piece.left}%`,
                   backgroundColor: piece.color,
                   animation: `confetti-burst ${piece.duration}s ease-out ${piece.delay}s forwards`,
                   width: `${piece.size}px`,
                   height: `${piece.size}px`,
-                  borderRadius: Math.random() > 0.5 ? '50%' : '0',
+                  borderRadius: piece.isRound ? '50%' : '0',
                 }}
               />
             ))}
@@ -309,13 +313,13 @@ export default function DiceSpinner() {
             <span>📖</span> How to Play
           </h3>
           <ul className="space-y-2 text-gray-600 dark:text-gray-300 text-sm md:text-base">
-            <li className="flex items-start gap-2">• Click "Roll Dice" to roll all dice at once with 3D animation</li>
-            <li className="flex items-start gap-2">• Add up to 10 dice with "+ Add Die"</li>
-            <li className="flex items-start gap-2">• Remove dice with the × button (minimum 1)</li>
-            <li className="flex items-start gap-2">• Total score is calculated automatically</li>
-            <li className="flex items-start gap-2">• High rolls trigger confetti celebration!</li>
-            <li className="flex items-start gap-2">• Haptic feedback on supported devices</li>
-            <li className="flex items-start gap-2">• Perfect for board games, D&D, and decision making!</li>
+            <li className="flex items-start gap-2">&#8226; Click "Roll Dice" to roll all dice at once with 3D animation</li>
+            <li className="flex items-start gap-2">&#8226; Add up to 10 dice with "+ Add Die"</li>
+            <li className="flex items-start gap-2">&#8226; Remove dice with the &times; button (minimum 1)</li>
+            <li className="flex items-start gap-2">&#8226; Total score is calculated automatically</li>
+            <li className="flex items-start gap-2">&#8226; High rolls trigger confetti celebration!</li>
+            <li className="flex items-start gap-2">&#8226; Haptic feedback on supported devices</li>
+            <li className="flex items-start gap-2">&#8226; Perfect for board games, D&D, and decision making!</li>
           </ul>
         </div>
       </div>

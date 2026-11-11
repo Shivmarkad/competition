@@ -36,7 +36,7 @@ export default function TermsOfService() {
 
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">3. No Account Required</h2>
-              <p>You do not need to create an account to use Game Hub. All game data is stored locally in your browser's <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono">localStorage</code>. We have no access to your data.</p>
+              <p>You do not need to create an account to use Game Hub. All game data is stored locally in your browser&apos;s <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono">localStorage</code>. We have no access to your data.</p>
             </div>
 
             <div>
@@ -47,7 +47,7 @@ export default function TermsOfService() {
                 <li><strong>Android (Google AdMob):</strong> Rewarded video ads (user-initiated for bonuses) and interstitial ads</li>
               </ul>
               <p className="mt-3">We do <strong>not</strong> use personalized/behavioral advertising. Ads are contextual only. By using the Service, you consent to the display of these ads.</p>
-              <p className="mt-3">Ad interactions are governed by <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 underline hover:text-indigo-700">Google's Advertising Policies</a>.</p>
+              <p className="mt-3">Ad interactions are governed by <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 underline hover:text-indigo-700">Google&apos;s Advertising Policies</a>.</p>
             </div>
 
             <div>
@@ -64,7 +64,7 @@ export default function TermsOfService() {
 
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">6. Intellectual Property</h2>
-              <p>The Service's original code, design, and content are owned by the developer. Game mechanics and rules are not copyrightable. You retain ownership of any custom content you create (character names, uploaded images, tournament brackets).</p>
+              <p>The Service&apos;s original code, design, and content are owned by the developer. Game mechanics and rules are not copyrightable. You retain ownership of any custom content you create (character names, uploaded images, tournament brackets).</p>
             </div>
 
             <div>

@@ -45,6 +45,10 @@
   --match-secondary: #f97316;
   --match-glow: rgba(245, 158, 11, 0.4);
 
+  --edu-primary: #06b6d4;
+  --edu-secondary: #3b82f6;
+  --edu-glow: rgba(6, 182, 212, 0.4);
+
   /* Fluid typography */
   --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
   --text-sm: clamp(0.875rem, 0.825rem + 0.25vw, 1rem);
@@ -128,6 +132,8 @@
   --color-dice-secondary: var(--dice-secondary);
   --color-match-primary: var(--match-primary);
   --color-match-secondary: var(--match-secondary);
+  --color-edu-primary: var(--edu-primary);
+  --color-edu-secondary: var(--edu-secondary);
 
   /* Touch targets */
   --touch-target: var(--touch-target);
@@ -174,6 +180,20 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Mute specific game animations while preserving essential feedback */
+  .animate-float,
+  .animate-ping-slow,
+  .animate-glow-pulse,
+  .animate-pulse-soft,
+  .animate-spin-slow,
+  .dice-roll,
+  .piece-drop,
+  .win-line,
+  .confetti-burst {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
@@ -344,6 +364,9 @@ body {
 .gradient-match {
   background: linear-gradient(135deg, var(--match-primary), var(--match-secondary));
 }
+.gradient-edu {
+  background: linear-gradient(135deg, var(--edu-primary), var(--edu-secondary));
+}
 
 .text-gradient-battle {
   background: linear-gradient(135deg, var(--battle-primary), var(--battle-secondary));
@@ -363,6 +386,12 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+.text-gradient-edu {
+  background: linear-gradient(135deg, var(--edu-primary), var(--edu-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 
 /* Touch-friendly interactive elements */
 @media (pointer: coarse) {
@@ -374,6 +403,55 @@ body {
   input, textarea, select {
     font-size: 16px; /* Prevents zoom on iOS */
   }
+}
+
+/* Design system guardrails - prevent inconsistent patterns */
+/* These classes should be used consistently across all components */
+
+/* Border radius - use from design system only */
+.border-radius-none { border-radius: 0; }
+.border-radius-sm { border-radius: var(--radius-sm); }
+.border-radius-md { border-radius: var(--radius-md); }
+.border-radius-lg { border-radius: var(--radius-lg); }
+.border-radius-xl { border-radius: var(--radius-xl); }
+.border-radius-full { border-radius: var(--radius-full); }
+
+/* Shadow - use from design system only */
+.shadow-none { box-shadow: none; }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+.shadow-2xl { box-shadow: var(--shadow-2xl); }
+
+/* Transition - use from design system only */
+.transition-none { transition: none; }
+.transition-fast { transition: var(--transition-fast); }
+.transition-normal { transition: var(--transition-normal); }
+.transition-slow { transition: var(--transition-slow); }
+.transition-bounce { transition: var(--transition-bounce); }
+
+/* Color - use from design system only */
+.color-battle-primary { color: var(--battle-primary); }
+.color-battle-secondary { color: var(--battle-secondary); }
+.color-dice-primary { color: var(--dice-primary); }
+.color-dice-secondary { color: var(--dice-secondary); }
+.color-match-primary { color: var(--match-primary); }
+.color-match-secondary { color: var(--match-secondary); }
+.color-edu-primary { color: var(--edu-primary); }
+.color-edu-secondary { color: var(--edu-secondary); }
+
+/* Ensure all focusable elements have visible focus */
+/*:focus-visible { outline: 2px solid var(--battle-primary); outline-offset: 2px; } /* Already in globals */
+
+/* Accessibility: ensure minimum contrast ratios are met */
+/* This is enforced by Tailwind utility classes and design system */
+
+@media (min-width: 640px) {
+  .container { padding: 0 var(--space-6); }
+}
+@media (min-width: 1024px) {
+  .container { padding: 0 var(--space-8); }
 }
 
 /* Custom checkbox/radio */

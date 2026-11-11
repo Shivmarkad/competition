@@ -27,7 +27,7 @@ export default function PrivacyPolicy() {
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">1. Information We Collect</h2>
               <p>Game Hub is designed with privacy in mind. We <strong>do not collect</strong> any personally identifiable information. No accounts, no emails, no tracking.</p>
-              <p>The only data stored is game state (scores, competitor names, dice counts) saved locally in your browser's <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono">localStorage</code>. This data never leaves your device.</p>
+              <p>The only data stored is game state (scores, competitor names, dice counts) saved locally in your browser&apos;s <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono">localStorage</code>. This data never leaves your device.</p>
             </div>
 
             <div>
@@ -70,13 +70,13 @@ export default function PrivacyPolicy() {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">6. Children's Privacy</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">6. Children&apos;s Privacy</h2>
               <p>Game Hub is not directed at children under 13. We do not knowingly collect data from children. If you believe a child has provided personal information, please contact us.</p>
             </div>
 
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">7. Data Retention</h2>
-              <p>Local storage data persists until you clear it. We have no server-side data retention because we don't store anything on our servers.</p>
+              <p>Local storage data persists until you clear it. We have no server-side data retention because we don&apos;t store anything on our servers.</p>
             </div>
 
             <div>

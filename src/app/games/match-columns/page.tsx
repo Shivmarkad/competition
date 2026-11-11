@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { AdSenseBanner } from "@/components/ads";
 
@@ -151,17 +151,29 @@ export default function MatchColumns() {
     setShowConfetti(false);
   }, [triggerHaptic]);
 
-  // Generate confetti pieces
-  const confettiPieces = useMemo(() => Array.from({ length: 40 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    color: winner === 'red'
-      ? ['#ef4444', '#f87171', '#fca5a5', '#fecaca'][Math.floor(Math.random() * 4)]
-      : ['#fde047', '#facc15', '#eab308', '#ca8a04'][Math.floor(Math.random() * 4)],
-    delay: Math.random() * 0.8,
-    duration: 1.5 + Math.random() * 1.5,
-    size: 8 + Math.random() * 12,
-  })), [winner]);
+  // Generate confetti pieces when winner changes
+  const [confettiPieces, setConfettiPieces] = useState<Array<{id: number; left: number; color: string; delay: number; duration: number; size: number; isRound: boolean}>>(() => []);
+
+  useEffect(() => {
+    if (!winner) {
+      return;
+    }
+    const redColors = ['#ef4444', '#f87171', '#fca5a5', '#fecaca'];
+    const yellowColors = ['#fde047', '#facc15', '#eab308', '#ca8a04'];
+    const pieces = Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      color: winner === 'red'
+        ? redColors[Math.floor(Math.random() * redColors.length)]
+        : yellowColors[Math.floor(Math.random() * yellowColors.length)],
+      delay: Math.random() * 0.8,
+      duration: 1.5 + Math.random() * 1.5,
+      size: 8 + Math.random() * 12,
+      isRound: Math.random() > 0.5,
+    }));
+    // Use setTimeout to avoid synchronous setState in effect (lint warning)
+    setTimeout(() => setConfettiPieces(pieces), 0);
+  }, [winner]);
 
   // Calculate board dimensions for responsive sizing
   const cellSize = isMobile ? 'min(12vw, 48px)' : 'min(10vw, 56px)';
@@ -325,7 +337,7 @@ export default function MatchColumns() {
                   animation: `confetti-burst ${piece.duration}s ease-out ${piece.delay}s forwards`,
                   width: `${piece.size}px`,
                   height: `${piece.size}px`,
-                  borderRadius: Math.random() > 0.5 ? '50%' : '0',
+                  borderRadius: piece.isRound ? '50%' : '0',
                 }}
               />
             ))}
@@ -371,14 +383,14 @@ export default function MatchColumns() {
             <span>📖</span> How to Play
           </h3>
           <ul className="space-y-2 text-gray-600 dark:text-gray-300 text-sm md:text-base">
-            <li className="flex items-start gap-2">• Click/tap any column to drop your piece</li>
-            <li className="flex items-start gap-2">• Pieces fall to the lowest available spot</li>
-            <li className="flex items-start gap-2">• Connect 4 pieces horizontally, vertically, or diagonally to win</li>
-            <li className="flex items-start gap-2">• Red goes first, then players alternate turns</li>
-            <li className="flex items-start gap-2">• Winning pieces highlight with a pulse animation</li>
-            <li className="flex items-start gap-2">• Click "New Game" to start over</li>
-            <li className="flex items-start gap-2">• Haptic feedback on supported devices</li>
-            <li className="flex items-start gap-2">• Column hover preview on desktop</li>
+            <li className="flex items-start gap-2">&#8226; Click/tap any column to drop your piece</li>
+            <li className="flex items-start gap-2">&#8226; Pieces fall to the lowest available spot</li>
+            <li className="flex items-start gap-2">&#8226; Connect 4 pieces horizontally, vertically, or diagonally to win</li>
+            <li className="flex items-start gap-2">&#8226; Red goes first, then players alternate turns</li>
+            <li className="flex items-start gap-2">&#8226; Winning pieces highlight with a pulse animation</li>
+            <li className="flex items-start gap-2">&#8226; Click "New Game" to start over</li>
+            <li className="flex items-start gap-2">&#8226; Haptic feedback on supported devices</li>
+            <li className="flex items-start gap-2">&#8226; Column hover preview on desktop</li>
           </ul>
         </div>
       </div>

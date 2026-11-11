@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { validateRuleConfig, validateImportedRules, validateLocalStorageItem, DEFAULT_CONFIG } from "@/lib/validation";
 import { CustomRule, RuleConfig } from "@/lib/types";
@@ -237,7 +237,7 @@ export default function CustomRules() {
         {/* Back Button */}
         <Link
           href="/tools"
-          className="inline-flex items-center gap-2 mb-6 md:mb-8 px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 min-h-[48px]"
+          className="inline-flex items-center gap-2 mb-6 md:mb-8 px-4 py-2.5 bg-white dark:bg-gray-800 text-white dark:text-gray-950 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 min-h-[48px]"
         >
           ← Back to Tools
         </Link>
@@ -247,7 +247,7 @@ export default function CustomRules() {
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gradient-battle mb-3">
             ⚙️ Custom Rules
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-white dark:text-gray-950 max-w-2xl mx-auto">
             Create house rules, handicaps, team modes & more. Share with friends via URL.
           </p>
         </header>
@@ -267,7 +267,7 @@ export default function CustomRules() {
               className={`px-4 py-2 rounded-xl font-medium transition-all min-h-[44px] ${
                 activeTab === tab.id
                   ? "bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-lg"
-                  : "bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/50 border border-gray-200 dark:border-gray-700"
+                  : "bg-white/50 dark:bg-gray-800/50 text-white dark:text-gray-950 hover:bg-white/70 dark:hover:bg-gray-700/50 border border-gray-200 dark:border-gray-700"
               }`}
             >
               {tab.label}

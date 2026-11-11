@@ -46,6 +46,16 @@ const GAMES: Game[] = [
     features: ["Win Detection", "Draw Detection", "Smooth Animation", "New Game Reset"],
   },
   {
+    id: "edu-swiper",
+    title: "Edu Swiper",
+    description: "Learn anything in bite-sized cards. Swipe, answer, level up!",
+    icon: "📚",
+    href: "/games/edu-swiper",
+    gradient: "gradient-edu",
+    color: "edu",
+    features: ["Spaced Repetition", "XP & Levels", "Daily Goals", "Multi-topic"],
+  },
+  {
     id: "tools",
     title: "Tools Hub",
     description: "Character Creator, Tournament Brackets, Score Tracker, Custom Rules & Battle Replay.",
@@ -82,12 +92,12 @@ export default function Home() {
         <header className="relative text-center mb-16 animate-fade-in-up">
           <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full glass border border-white/20 mb-6 animate-scale-in stagger-1">
             <span className="text-2xl">🎮</span>
-            <span className="font-semibold text-gray-700 dark:text-gray-300">Game Hub</span>
+            <span className="font-semibold text-gray-900 dark:text-gray-950">Game Hub</span>
           </div>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gradient-battle mb-6 animate-fade-in-up stagger-2">
             Play Games
           </h1>
-          <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto animate-fade-in-up stagger-3">
+          <p className="text-xl md:text-2xl text-white dark:text-white max-w-2xl mx-auto animate-fade-in-up stagger-3">
             Three unique games. Zero installs. Pure fun.
           </p>
         </header>
@@ -120,19 +130,19 @@ export default function Home() {
                   </div>
 
                   {/* Title */}
-                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r">
+                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-950 mb-3">
                     {game.title}
                   </h2>
 
                   {/* Description */}
-                  <p className="text-gray-600 dark:text-gray-400 mb-6 flex-1 line-clamp-3">
+                  <p className="text-gray-900 dark:text-gray-950 mb-6 flex-1 line-clamp-3">
                     {game.description}
                   </p>
 
                   {/* Features */}
                   <ul className="space-y-2 mb-6" role="list" aria-label={`${game.title} features`}>
                     {game.features.map((feature, i) => (
-                      <li key={i} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors">
+                      <li key={i} className="flex items-center gap-3 text-sm text-gray-900 dark:text-gray-950">
                         <span className="w-5 h-5 rounded-full bg-current/10 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `var(--${game.color}-primary)`, color: `var(--${game.color}-primary)` }}>
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -169,10 +179,10 @@ export default function Home() {
           {/* Features Section */}
           <section className="relative animate-fade-in-up" style={{ animationDelay: '400ms' }}>
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              <h2 className="text-3xl md:text-4xl font-bold text-white dark:text-white mb-4">
                 Why Game Hub?
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              <p className="text-lg text-white dark:text-white max-w-2xl mx-auto">
                 Built with modern web technologies for the best experience
               </p>
             </div>
@@ -187,10 +197,10 @@ export default function Home() {
                   <div className="text-4xl mb-4 animate-float" style={{ animationDelay: `${index * 0.5}s` }}>
                     {feature.icon}
                   </div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-950 mb-2">
                     {feature.title}
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-900 dark:text-gray-950">
                     {feature.desc}
                   </p>
                 </div>
@@ -200,10 +210,10 @@ export default function Home() {
 
           {/* Footer */}
           <footer className="mt-20 text-center animate-fade-in-up" style={{ animationDelay: '800ms' }}>
-            <p className="text-gray-500 dark:text-gray-500 text-sm">
+            <p className="text-white dark:text-white text-sm">
               Made with Next.js 16, React 19 & Tailwind CSS 4
             </p>
-            <p className="text-gray-400 dark:text-gray-600 text-xs mt-2">
+            <p className="text-white dark:text-white text-xs mt-2">
               Open source • No tracking • Works offline
             </p>
           </footer>

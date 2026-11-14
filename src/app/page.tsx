@@ -46,6 +46,16 @@ const GAMES: Game[] = [
     features: ["Win Detection", "Draw Detection", "Smooth Animation", "New Game Reset"],
   },
   {
+    id: "bottle-puzzle",
+    title: "Bottle Puzzle",
+    description: "Slide bottles into empty spaces to match exactly four in a row. Gravity drops them down!",
+    icon: "🔵",
+    href: "/games/bottle-puzzle",
+    gradient: "gradient-match",
+    color: "match",
+    features: ["Slide & Match", "Gravity Physics", "Exactly 4 Wins", "Haptic Feedback"],
+  },
+  {
     id: "edu-swiper",
     title: "Edu Swiper",
     description: "Learn anything in bite-sized cards. Swipe, answer, level up!",

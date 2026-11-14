@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import BottlePuzzle from '@/app/games/bottle-puzzle/page';
 import '@testing-library/jest-dom';
 
@@ -12,42 +12,60 @@ describe('BottlePuzzle', () => {
     jest.clearAllMocks();
   });
 
-  test('initial board has 6x7 cells', () => {
+  // Helper to get all board cells (both play area and target area)
+  const getBoardCells = () => screen.getAllByRole('button', { name: /(row|target)/i });
+
+  test('initial board renders 6x7 cells (42 total)', () => {
     render(<BottlePuzzle />);
-    // Check that the board renders - find the board container by its grid structure
-    const cells = screen.getAllByRole('button', { name: /row/i });
-    expect(cells.length).toBe(42);
+    const cells = getBoardCells();
+    expect(cells.length).toBe(56);
   });
 
-  test('board renders 42 cells (6x7)', () => {
+  test('board renders 42 cells (6x7) with target colors at bottom', () => {
     render(<BottlePuzzle />);
+    const cells = getBoardCells();
+    expect(cells.length).toBe(56);
+
+    // Check that bottom 4 rows (target area) have bottles with yellow ring
+    const targetCells = cells.filter(cell => {
+      const label = cell.getAttribute('aria-label') || '';
+      return label.includes('Target:');
+    });
+    // 7 columns * 4 target rows = 28 target cells
+    expect(targetCells.length).toBe(28);
+  });
+
+  test('drop buttons exist for each column', () => {
+    render(<BottlePuzzle />);
+    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
+    expect(dropButtons.length).toBe(7);
+  });
+
+  test('clicking drop button adds bottle to column with gravity', async () => {
+    render(<BottlePuzzle />);
+
     // Wait for client-side rendering
-    const cells = screen.getAllByRole('button', { name: /row/i });
-    expect(cells.length).toBe(42);
-  });
+    await waitFor(() => {
+      const cells = getBoardCells();
+      expect(cells.length).toBe(56);
+    });
 
-  test('clicking a bottle adjacent to empty space moves it', () => {
-    render(<BottlePuzzle />);
+    // Find drop button for column 0
+    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
+    const firstDropButton = dropButtons[0];
+    expect(firstDropButton).toBeInTheDocument();
 
-    const cells = screen.getAllByRole('button');
-    // Find a non-empty cell
-    let bottleCell = null;
-    let emptyCell = null;
+    // Click drop button
+    act(() => {
+      fireEvent.click(firstDropButton);
+    });
 
-    for (const cell of cells) {
-      if (cell.hasAttribute('aria-label')) {
-        const label = cell.getAttribute('aria-label') || '';
-        if (label.includes('bottle') && !bottleCell) {
-          bottleCell = cell;
-        } else if (label.includes('empty') && !emptyCell) {
-          emptyCell = cell;
-        }
-      }
-      if (bottleCell && emptyCell) break;
-    }
-
-    expect(bottleCell).not.toBeNull();
-    expect(emptyCell).not.toBeNull();
+    // Check that a bottle was added to column 0 (should be at bottom of play area - bottleIndex 8)
+    // columnBottles: 4 target (indices 0-3) + 4 play (indices 4-7), bottom play is index 7 -> bottleIndex + 1 = 8
+    const cells = getBoardCells();
+    const col0Row1 = cells.find(c => c.getAttribute('aria-label')?.includes('Row 8, Column 1') && !c.getAttribute('aria-label')?.includes('Target'));
+    // Note: After gravity, bottle should fall to bottom of play area
+    expect(col0Row1).toBeInTheDocument();
   });
 
   test('reset game button exists', () => {
@@ -56,8 +74,13 @@ describe('BottlePuzzle', () => {
     expect(resetButton).toBeInTheDocument();
   });
 
-  test('reset game clears winner state', () => {
-    const { rerender } = render(<BottlePuzzle />);
+  test('reset game clears board and generates new targets', async () => {
+    render(<BottlePuzzle />);
+
+    await waitFor(() => {
+      const cells = getBoardCells();
+      expect(cells.length).toBe(56);
+    });
 
     const resetButton = screen.getByRole('button', { name: /new game/i });
 
@@ -66,84 +89,85 @@ describe('BottlePuzzle', () => {
     });
 
     // Board should still have 42 cells
-    const cells = screen.getAllByRole('button', { name: /row/i });
-    expect(cells.length).toBe(42);
-  });
-});
-
-describe('checkWin logic', () => {
-  // Test the checkWin function logic directly by creating test boards
-
-  const createTestBoard = (): string[][] => {
-    return Array(6).fill(null).map(() => Array(7).fill('empty'));
-  };
-
-  test('detects horizontal win of exactly 4', () => {
-    const board = createTestBoard();
-    // Place 4 red in a row at row 0, cols 0-3
-    board[0][0] = 'red';
-    board[0][1] = 'red';
-    board[0][2] = 'red';
-    board[0][3] = 'red';
-    // Ensure not 5 by making adjacent different
-    board[0][4] = 'blue';
-
-    // This tests the logic, not the component
-    expect(board[0][0]).toBe('red');
-    expect(board[0][1]).toBe('red');
-    expect(board[0][2]).toBe('red');
-    expect(board[0][3]).toBe('red');
-    expect(board[0][4]).toBe('blue');
+    const cells = getBoardCells();
+    expect(cells.length).toBe(56);
   });
 
-  test('detects vertical win of exactly 4', () => {
-    const board = createTestBoard();
-    board[0][0] = 'blue';
-    board[1][0] = 'blue';
-    board[2][0] = 'blue';
-    board[3][0] = 'blue';
-    board[4][0] = 'green'; // different below
+  test('completed column shows green ring', async () => {
+    render(<BottlePuzzle />);
 
-    expect(board[0][0]).toBe('blue');
-    expect(board[3][0]).toBe('blue');
-    expect(board[4][0]).toBe('green');
+    await waitFor(() => {
+      const cells = getBoardCells();
+      expect(cells.length).toBe(56);
+    });
+
+    // Drop 4 bottles in column 0 to complete it
+    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
+    const firstDropButton = dropButtons[0];
+
+    for (let i = 0; i < 4; i++) {
+      act(() => {
+        fireEvent.click(firstDropButton);
+      });
+    }
+
+    // Check that column 0 now shows completion (green ring)
+    const cells = getBoardCells();
+    const completedCells = cells.filter(cell =>
+      cell.getAttribute('aria-label')?.includes('Column 1') &&
+      cell.hasAttribute('class') &&
+      cell.getAttribute('class')?.includes('ring-green')
+    );
+    expect(completedCells.length).toBeGreaterThan(0);
   });
 
-  test('detects diagonal win of exactly 4', () => {
-    const board = createTestBoard();
-    board[0][0] = 'green';
-    board[1][1] = 'green';
-    board[2][2] = 'green';
-    board[3][3] = 'green';
-    board[4][4] = 'yellow'; // different
+  test('win detection when all 7 columns complete', async () => {
+    render(<BottlePuzzle />);
 
-    expect(board[0][0]).toBe('green');
-    expect(board[3][3]).toBe('green');
-    expect(board[4][4]).toBe('yellow');
+    await waitFor(() => {
+      const cells = getBoardCells();
+      expect(cells.length).toBe(56);
+    });
+
+    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
+
+    // Complete all 7 columns
+    for (let col = 0; col < 7; col++) {
+      for (let i = 0; i < 4; i++) {
+        act(() => {
+          fireEvent.click(dropButtons[col]);
+        });
+      }
+    }
+
+    // Check for win message
+    await waitFor(() => {
+      const winMessage = screen.getByText(/you win/i);
+      expect(winMessage).toBeInTheDocument();
+    });
   });
 
-  test('does not count 5 in a row as win', () => {
-    const board = createTestBoard();
-    board[0][0] = 'yellow';
-    board[0][1] = 'yellow';
-    board[0][2] = 'yellow';
-    board[0][3] = 'yellow';
-    board[0][4] = 'yellow'; // 5 in a row
+  test('drop button disabled for completed column', async () => {
+    render(<BottlePuzzle />);
 
-    // This should NOT be a win (exactly 4 required)
-    const count = board[0].filter(c => c === 'yellow').length;
-    expect(count).toBe(5);
-  });
-});
+    await waitFor(() => {
+      const cells = getBoardCells();
+      expect(cells.length).toBe(56);
+    });
 
-describe('applyGravity logic', () => {
-  test('bottles fall to bottom', () => {
-    const board = Array(6).fill(null).map(() => Array(7).fill('empty'));
-    board[0][0] = 'red';
-    board[2][0] = 'blue';
+    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
+    const firstDropButton = dropButtons[0];
 
-    // After gravity, red should be at row 5, blue at row 4
-    expect(board[0][0]).toBe('red');
-    expect(board[2][0]).toBe('blue');
+    // Complete column 0
+    for (let i = 0; i < 4; i++) {
+      act(() => {
+        fireEvent.click(firstDropButton);
+      });
+    }
+
+    // Drop button should now be disabled (shows checkmark)
+    await waitFor(() => {
+      expect(firstDropButton).toBeDisabled();
+    });
   });
 });

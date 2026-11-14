@@ -1,340 +1,353 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-type Bottle = 'red' | 'blue' | 'green' | 'yellow' | 'empty';
-type Board = Bottle[][];
+type BottleColor = 'red' | 'blue' | 'green' | 'yellow';
 
-const ROWS = 6;
-const COLS = 7;
+const COLORS: BottleColor[] = ['red', 'blue', 'green', 'yellow'];
 
-const BOTTLE_COLORS = {
-  red: { bg: 'bg-red-500', name: 'Red', emoji: '🔴' },
-  blue: { bg: 'bg-blue-500', name: 'Blue', emoji: '🔵' },
-  green: { bg: 'bg-green-500', name: 'Green', emoji: '🟢' },
-  yellow: { bg: 'bg-yellow-400', name: 'Yellow', emoji: '🟡' },
-  empty: { bg: 'bg-gray-200 dark:bg-gray-700', name: '', emoji: '' },
+const BOTTLE_STYLES: Record<BottleColor, { bg: string; light: string; dark: string; border: string }> = {
+  red: { bg: '#ef4444', light: '#f87171', dark: '#991b1b', border: '#7f1d1d' },
+  blue: { bg: '#3b82f6', light: '#60a5fa', dark: '#1e40af', border: '#1e3a8a' },
+  green: { bg: '#22c55e', light: '#4ade80', dark: '#15803d', border: '#166534' },
+  yellow: { bg: '#eab308', light: '#facc15', dark: '#854d0e', border: '#713f12' },
 };
 
 export default function BottlePuzzle() {
-  const [board, setBoard] = useState<Board>([]);
-  const [winner, setWinner] = useState<Bottle | 'draw' | null>(null);
-  const [winningCells, setWinningCells] = useState<Set<string>>(new Set());
+  const [topBottles, setTopBottles] = useState<BottleColor[]>([]);
+  const [targetBottles, setTargetBottles] = useState<BottleColor[]>([]);
+  const [winner, setWinner] = useState(false);
 
-  const initBoard = (rows: number, cols: number): Board => {
-    const colors: Bottle[] = ['red', 'blue', 'green', 'yellow'];
-    const board: Board = [];
-    for (let r = 0; r < rows; r++) {
-      board[r] = [];
-      for (let c = 0; c < cols; c++) {
-        board[r][c] = colors[Math.floor(Math.random() * colors.length)];
-      }
-    }
-    // Add some empty spaces for sliding puzzle mechanics
-    const emptyCount = Math.floor((rows * cols) / 8); // ~5 empty spaces for 6x7
-    for (let i = 0; i < emptyCount; i++) {
-      const r = Math.floor(Math.random() * rows);
-      const c = Math.floor(Math.random() * cols);
-      board[r][c] = 'empty';
-    }
-    return board;
-  };
-
-  // Apply gravity - bottles fall down into empty spaces below
-  const applyGravity = useCallback((board: Board): Board => {
-    const newBoard = board.map((row) => [...row]);
-    for (let c = 0; c < COLS; c++) {
-      let writeRow = ROWS - 1;
-      for (let r = ROWS - 1; r >= 0; r--) {
-        if (newBoard[r][c] !== 'empty') {
-          if (writeRow !== r) {
-            newBoard[writeRow][c] = newBoard[r][c];
-            newBoard[r][c] = 'empty';
-          }
-          writeRow--;
-        }
-      }
-    }
-    return newBoard;
-  }, []);
-
-  const checkWin = useCallback((b: Board): { winner: Bottle; cells: string[] } | null => {
-    const directions = [
-      [0, 1],   // horizontal
-      [1, 0],   // vertical
-      [1, 1],   // diagonal \
-      [1, -1],  // diagonal /
-    ];
-
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const color = b[r][c];
-        if (color === 'empty') continue;
-
-        for (const [dr, dc] of directions) {
-          let count = 1;
-          const cells = [`${r},${c}`];
-
-          // Check positive direction
-          for (let i = 1; i < 4; i++) {
-            const nr = r + dr * i;
-            const nc = c + dc * i;
-            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && b[nr][nc] === color) {
-              count++;
-              cells.push(`${nr},${nc}`);
-            } else {
-              break;
-            }
-          }
-
-          // Check negative direction
-          for (let i = 1; i < 4; i++) {
-            const nr = r - dr * i;
-            const nc = c - dc * i;
-            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && b[nr][nc] === color) {
-              count++;
-              cells.push(`${nr},${nc}`);
-            } else {
-              break;
-            }
-          }
-
-          // Exactly 4 in a row (not more)
-          if (count === 4) {
-            // Verify it's exactly 4 by checking adjacent cells
-            const beforeR = r - dr;
-            const beforeC = c - dc;
-            const afterR = r + dr * 4;
-            const afterC = c + dc * 4;
-
-            const beforeEmpty = beforeR < 0 || beforeR >= ROWS || beforeC < 0 || beforeC >= COLS || b[beforeR][beforeC] !== color;
-            const afterEmpty = afterR < 0 || afterR >= ROWS || afterC < 0 || afterC >= COLS || b[afterR][afterC] !== color;
-
-            if (beforeEmpty && afterEmpty) {
-              return { winner: color, cells };
-            }
-          }
-        }
-      }
-    }
-    return null;
-  }, []);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [charPos, setCharPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isAutoSolving, setIsAutoSolving] = useState(false);
 
   useEffect(() => {
-    const board = initBoard(ROWS, COLS);
-    const boardWithGravity = applyGravity(board);
-    setBoard(boardWithGravity);
-    // Check for win on initial board
-    const winResult = checkWin(boardWithGravity);
-    if (winResult) {
-      setWinner(winResult.winner);
-      setWinningCells(new Set(winResult.cells));
-    }
-  }, [applyGravity, checkWin]);
+    initGame();
+    // Initial character position
+    setCharPos({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0 });
+  }, []);
 
-  const moveBottle = useCallback((row: number, col: number) => {
-    if (winner !== null) return;
-    if (board[row][col] === 'empty') return;
-
-    const directions = [
-      [0, 1],   // right
-      [1, 0],   // down
-      [0, -1],  // left
-      [-1, 0],  // up
-    ];
-
-    for (const [dr, dc] of directions) {
-      const newRow = row + dr;
-      const newCol = col + dc;
-      if (
-        newRow >= 0 &&
-        newRow < ROWS &&
-        newCol >= 0 &&
-        newCol < COLS &&
-        board[newRow][newCol] === 'empty'
-      ) {
-        const newBoard = board.map((r, i) =>
-          r.map((val, j) =>
-            i === row && j === col
-              ? 'empty'
-              : i === newRow && j === newCol
-              ? board[row][col]
-              : val
-          )
-        );
-        // Apply gravity after move
-        const boardWithGravity = applyGravity(newBoard);
-        setBoard(boardWithGravity);
-
-        // Check for win after move
-        const winResult = checkWin(boardWithGravity);
-        if (winResult) {
-          setWinner(winResult.winner);
-          setWinningCells(new Set(winResult.cells));
-        }
-        return;
-      }
-    }
-  }, [board, winner, applyGravity, checkWin]);
-
-  const handleClick = useCallback((row: number, col: number) => {
-    if (winner !== null) return;
-    if (board[row][col] !== 'empty') {
-      moveBottle(row, col);
-    }
-  }, [winner, board, moveBottle]);
-
-  const resetGame = () => {
-    const board = initBoard(ROWS, COLS);
-    setBoard(applyGravity(board));
-    setWinner(null);
-    setWinningCells(new Set());
+  const initGame = () => {
+    const shuffledTargets = [...COLORS].sort(() => Math.random() - 0.5);
+    setTargetBottles(shuffledTargets);
+    const shuffledTop = [...shuffledTargets].sort(() => Math.random() - 0.5);
+    setTopBottles(shuffledTop);
+    setWinner(false);
+    setDraggingIdx(null);
+    setIsDragging(false);
+    setIsAutoSolving(false);
   };
 
-  const cellSize = 'min(12vw, 48px)';
-  const gapSize = '2px';
-  const boardPadding = '8px';
-  const boardBorderRadius = '12px';
+  const handleMouseDown = (idx: number, e: any) => {
+    if (winner || isAutoSolving) return;
+
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.clientX !== undefined) {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    } else {
+      return;
+    }
+
+    setDraggingIdx(idx);
+    setIsDragging(true);
+    setDragPos({ x: clientX, y: clientY });
+    setCharPos({ x: clientX, y: clientY - 50 });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+
+      if (isDragging) {
+        setDragPos({ x: clientX, y: clientY });
+        setCharPos({ x: clientX, y: clientY - 60 });
+      } else {
+        // Character subtly follows the mouse when not dragging
+        setCharPos(prev => ({
+          x: prev.x + (clientX - prev.x) * 0.1,
+          y: prev.y + (clientY - prev.y) * 0.1
+        }));
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (!isDragging) return;
+
+      if (draggingIdx !== null) {
+        setTimeout(() => {
+          const element = document.elementFromPoint(dragPos.x, dragPos.y);
+          const bottleWrapper = element?.closest('[data-bottle-idx]');
+
+          if (bottleWrapper) {
+            const targetIdx = parseInt(bottleWrapper.getAttribute('data-bottle-idx') || '-1', 10);
+
+            if (targetIdx !== -1 && targetIdx !== draggingIdx) {
+              setTopBottles(prevTop => {
+                const newTop = [...prevTop];
+                [newTop[draggingIdx], newTop[targetIdx]] = [newTop[targetIdx], newTop[draggingIdx]];
+
+                if (newTop.every((color, i) => color === targetBottles[i])) {
+                  setWinner(true);
+                }
+                return newTop;
+              });
+            }
+          }
+        }, 0);
+      }
+
+      setDraggingIdx(null);
+      setIsDragging(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleMouseMove, { passive: false });
+    window.addEventListener('touchend', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [isDragging, draggingIdx, targetBottles, dragPos]);
+
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const autoRandomSwap = async () => {
+    setIsAutoSolving(true);
+
+    while (!winner) {
+      const currentTop = await new Promise<BottleColor[]>(resolve => {
+        setTopBottles(prev => { resolve(prev); return prev; });
+      });
+
+      if (currentTop.every((color, i) => color === targetBottles[i])) {
+        setWinner(true);
+        break;
+      }
+
+      const idx1 = Math.floor(Math.random() * 4);
+      let idx2 = Math.floor(Math.random() * 4);
+      while (idx1 === idx2) {
+        idx2 = Math.floor(Math.random() * 4);
+      }
+
+      const sourceEl = document.querySelector(`[data-bottle-idx="${idx1}"]`);
+      if (sourceEl) {
+        const rect = sourceEl.getBoundingClientRect();
+        setCharPos({ x: rect.left + rect.width / 2, y: rect.top - 60 });
+        await sleep(600);
+      }
+
+      setDraggingIdx(idx1);
+      setIsDragging(true);
+      const startRect = sourceEl?.getBoundingClientRect() || { left: 0, top: 0, width: 64, height: 130 };
+      setDragPos({ x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 });
+      setCharPos({ x: startRect.left + startRect.width / 2, y: startRect.top - 60 });
+      await sleep(400);
+
+      const targetEl = document.querySelector(`[data-bottle-idx="${idx2}"]`);
+      if (targetEl) {
+        const rect = targetEl.getBoundingClientRect();
+        const targetX = rect.left + rect.width / 2;
+        const targetY = rect.top + rect.height / 2;
+
+        setDragPos({ x: targetX, y: targetY });
+        setCharPos({ x: targetX, y: rect.top - 60 });
+        await sleep(700);
+      }
+
+      setTopBottles(prevTop => {
+        const newTop = [...prevTop];
+        [newTop[idx1], newTop[idx2]] = [newTop[idx2], newTop[idx1]];
+        if (newTop.every((color, i) => color === targetBottles[i])) {
+          setWinner(true);
+        }
+        return newTop;
+      });
+
+      setDraggingIdx(null);
+      setIsDragging(false);
+      await sleep(600);
+    }
+    setIsAutoSolving(false);
+  };
+
+  const Bottle = ({ color, isTarget, isDragging, onStart, index }: {
+    color: BottleColor;
+    isTarget: boolean;
+    isDragging: boolean;
+    onStart?: (idx: number, e: any) => void;
+    index?: number;
+  }) => {
+    const style = BOTTLE_STYLES[color];
+
+    return (
+      <div
+        onMouseDown={(e) => onStart?.(index!, e)}
+        onTouchStart={(e) => onStart?.(index!, e)}
+        className={`relative transition-all duration-200 ${isDragging ? 'opacity-0 pointer-events-none' : 'hover:scale-105'} ${isTarget ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
+        style={{ width: '64px', height: '130px' }}
+      >
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-6 rounded-t-sm"
+          style={{
+            background: `linear-gradient(90deg, ${style.dark}, ${style.bg}, ${style.dark})`,
+            border: `1px solid ${style.border}`
+          }}
+        />
+        <div
+          className="absolute bottom-0 left-0 right-0 h-4/5 rounded-b-2xl"
+          style={{
+            background: `linear-gradient(90deg, ${style.dark} 0%, ${style.light} 50%, ${style.dark} 100%)`,
+            border: `2px solid ${style.border}`,
+            boxShadow: 'inset -6px 0 10px rgba(0,0,0,0.4), 0 8px 15px rgba(0,0,0,0.2)',
+          }}
+        >
+          <div className="absolute left-2 top-2 w-2 h-1/2 bg-white/30 rounded-full blur-[1px]" />
+        </div>
+        {isTarget && (
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Target</div>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50 to-amber-100 dark:from-slate-900 dark:via-slate-800 py-8 px-4 safe-top safe-bottom">
-      <div className="container">
-        {/* Back Button */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 mb-6 md:mb-8 px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 min-h-[48px]"
-        >
+    <div className="min-h-screen bg-[#fdfcf0] dark:bg-slate-950 py-12 px-4 overflow-hidden relative select-none touch-none">
+      <div className="absolute top-10 left-10 w-32 h-32 bg-yellow-200/30 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 right-10 w-48 h-48 bg-blue-200/20 rounded-full blur-3xl" />
+
+      <div className="max-w-3xl mx-auto flex flex-col items-center gap-16 relative">
+        <Link href="/" className="self-start px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium">
           ← Back to Games
         </Link>
 
-        {/* Header */}
-        <header className="text-center mb-6 md:mb-8 animate-fade-in-up">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gradient-match mb-3">
-            🔴 Bottle Puzzle
+        <div className="text-center space-y-4 z-10">
+          <h1 className="text-5xl font-black text-gray-900 dark:text-white tracking-tight">
+            <span className="text-blue-500">🍾</span> Bottle Swap
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Match four bottles of the same color in a row to win!
+          <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">
+            Drag the bottles to match the target colors!
           </p>
-        </header>
-
-        {/* Status */}
-        <div className="text-center mb-6 md:mb-8 animate-fade-in-up">
-          {winner ? (
-            <div className="inline-flex flex-col items-center gap-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 border-4 border-green-500/30 animate-bounce-in">
-              <div className="flex items-center gap-3">
-                <span className="text-4xl md:text-5xl animate-bounce">
-                  {winner === 'draw' ? '🤝' : winner === 'red' ? '🔴' : winner === 'blue' ? '🔵' : winner === 'green' ? '🟢' : '🟡'}
-                </span>
-              </div>
-              <div className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {winner === 'draw' ? "It's a Draw!" : `${BOTTLE_COLORS[winner as keyof typeof BOTTLE_COLORS].name} Wins!`}
-              </div>
-              <div className="text-lg text-gray-600 dark:text-gray-400">
-                {winner === 'draw' ? "Great game!" : 'Exactly four in a row!'}
-              </div>
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-4 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 md:p-6 border-4 border-blue-500/30 animate-fade-in-up">
-              <div className="text-gray-600 dark:text-gray-400 text-sm md:text-base font-medium">
-                Slide to Match
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-blue-500 shadow-lg animate-pulse-soft flex items-center justify-center" style={{ boxShadow: '0 0 20px rgba(59, 130, 246, 0.5)' }}>
-                  <span className="text-2xl md:text-3xl">🎯</span>
-                </div>
-                <span className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
-                  Your Move
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Game Board */}
-        <div className="mb-6 md:mb-8 animate-fade-in-up">
+        {/* Character always visible */}
+        <div
+          className="fixed pointer-events-none transition-all duration-300 ease-out z-50 text-5xl"
+          style={{
+            left: charPos.x,
+            top: charPos.y,
+            transform: 'translate(-50%, -100%)',
+            opacity: 1,
+          }}
+        >
+          👨‍🔬
+        </div>
+
+        {/* Dragged Bottle + Hands */}
+        {isDragging && draggingIdx !== null && (
           <div
-            className="inline-block relative"
+            className="fixed pointer-events-none z-40 transition-transform duration-75"
             style={{
-              background: '#1e40af',
-              borderRadius: boardBorderRadius,
-              padding: boardPadding,
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), inset 0 0 0 4px rgba(30, 64, 175, 0.5)',
+              left: dragPos.x,
+              top: dragPos.y,
+              transform: 'translate(-50%, -50%) scale(1.1)',
+              filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.3))'
             }}
           >
-            <div className="relative grid gap-[3px]" style={{ gap: gapSize, gridTemplateColumns: `repeat(7, 1fr)` }}>
-              {board.map((row, rowIndex) =>
-                row.map((cell, colIndex) => {
-                  const cellKey = `${rowIndex},${colIndex}`;
-                  const isWinning = winningCells.has(cellKey);
-                  const isLastMove = false; // placeholder for last move indicator
-                  const cellColor = cell === 'empty' ? 'empty' : cell;
+            {/* Left Hand */}
+            <div className="absolute -left-10 top-1/2 -translate-y-1/2 text-3xl animate-bounce">🖐️</div>
+            {/* Right Hand */}
+            <div className="absolute -right-10 top-1/2 -translate-y-1/2 text-3xl animate-bounce scale-x-[-1]">🖐️</div>
 
-                  return (
-                    <button
-                      key={cellKey}
-                      onClick={() => handleClick(rowIndex, colIndex)}
-                      disabled={winner !== null}
-                      className={`relative aspect-square rounded-full transition-all duration-300 ${
-                        cellColor === 'empty'
-                          ? 'bg-gray-200 dark:bg-gray-700'
-                          : `bg-${cellColor}-500 dark:bg-${cellColor}-500/80`
-                      }`}
-                      style={{
-                        width: cellSize,
-                        height: cellSize,
-                        minWidth: cellSize,
-                        minHeight: cellSize,
-                      }}
-                      aria-label={`Row ${rowIndex + 1}, Column ${colIndex + 1}${cell !== 'empty' ? `, ${cellColor} bottle` : ', empty'}`}
-                      aria-disabled={winner !== null || cell !== 'empty'}
-                    >
-                      {isWinning && (
-                        <div className="absolute inset-0 rounded-full bg-white/30 animate-pulse" />
-                      )}
-                    </button>
-                  );
-                })
-              )}
+            <Bottle
+              color={topBottles[draggingIdx]}
+              isTarget={false}
+              isDragging={false}
+              index={draggingIdx}
+            />
+          </div>
+        )}
+
+        {winner && (
+          <div className="bg-green-500 text-white px-8 py-4 rounded-2xl font-black text-2xl animate-bounce shadow-2xl z-10 border-4 border-white">
+            🎉 PERFECT MATCH!
+          </div>
+        )}
+
+        <div className="flex flex-col gap-28 items-center relative z-10">
+          <div className="flex gap-10 p-10 bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl border-8 border-white dark:border-gray-800 relative">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">
+              Player's Shelf
             </div>
+            {topBottles.map((color, i) => (
+              <div
+                key={`top-wrap-${i}`}
+                data-bottle-idx={i}
+                className="relative"
+              >
+                <Bottle
+                  color={color}
+                  isTarget={false}
+                  isDragging={draggingIdx === i}
+                  index={i}
+                  onStart={handleMouseDown}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-10 p-10 bg-gray-100 dark:bg-gray-800/50 rounded-[40px] border-4 border-dashed border-gray-300 dark:border-gray-700 relative">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gray-400 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">
+              Target Sequence
+            </div>
+            {targetBottles.map((color, i) => (
+              <Bottle
+                key={`target-${i}`}
+                color={color}
+                isTarget={true}
+                isDragging={false}
+                index={i}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-col items-center gap-4 md:gap-6 animate-fade-in-up">
+        <div className="flex gap-4">
           <button
-            onClick={resetGame}
-            className="btn-primary px-10 md:px-16 py-4 md:py-5 text-lg md:text-xl min-w-[280px] shadow-xl"
-            style={{ boxShadow: '0 10px 30px -10px var(--match-glow)', minHeight: '56px' }}
+            onClick={initGame}
+            className="px-8 py-3 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full font-bold text-lg hover:scale-105 transition-all shadow-md active:scale-95"
           >
-            🔄 New Game
+            🔄 Reset
+          </button>
+          <button
+            onClick={autoRandomSwap}
+            disabled={isAutoSolving || winner}
+            className={`px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full font-bold text-lg transition-all shadow-xl hover:scale-105 active:scale-95 ${isAutoSolving ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isAutoSolving ? '🤖 Trying...' : '🤖 Auto Mode'}
           </button>
         </div>
 
-        {/* AdSense Banner */}
-        <div className="my-8 md:my-12 animate-fade-in-up" role="complementary" aria-label="Advertisement">
-          <div className="w-full max-w-4xl mx-auto">
-            {/* Placeholder for AdSense */}
-            <div className="h-48 bg-gray-200 rounded">
-              AdSense Banner
-            </div>
+        <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 rounded-2xl backdrop-blur-sm border border-white/20">
+          <p className="font-bold mb-2 text-gray-700 dark:text-gray-300">How to play:</p>
+          <div className="space-y-2">
+            <p>1. 🖱️ <span className="font-semibold">Drag</span> a bottle from the top shelf.</p>
+            <p>2. 🎯 <span className="font-semibold">Drop</span> it on another bottle to swap.</p>
+            <p>3. ✨ <span className="font-semibold">Align</span> colors with the target row to win!</p>
           </div>
-        </div>
-
-        {/* Instructions */}
-        <div className="mt-8 md:mt-12 p-6 rounded-2xl glass border border-white/20 animate-fade-in-up">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-            <span>📖</span> How to Play
-          </h3>
-          <ul className="space-y-2 text-gray-600 dark:text-gray-300 text-sm md:text-base">
-            <li className="flex items-start gap-2">&#8226; Click/tap any bottle to slide it into an adjacent empty space (up, down, left, right)</li>
-            <li className="flex items-start gap-2">&#8226; Bottles fall down due to gravity after each move</li>
-            <li className="flex items-start gap-2">&#8226; Connect exactly four bottles of the same color horizontally, vertically, or diagonally to win</li>
-            <li className="flex items-start gap-2">&#8226; Lines longer than four don't count - must be exactly four</li>
-            <li className="flex items-start gap-2">&#8226; Winning bottles highlight with a pulse animation</li>
-            <li className="flex items-start gap-2">&#8226; Click "New Game" to start over with a new random board</li>
-            <li className="flex items-start gap-2">&#8226; Haptic feedback on supported devices</li>
-          </ul>
         </div>
       </div>
     </div>

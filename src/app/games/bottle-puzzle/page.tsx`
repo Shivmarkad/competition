@@ -1,0 +1,207 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+
+type BottleColor = 'red' | 'blue' | 'green' | 'yellow';
+
+const COLORS: BottleColor[] = ['red', 'blue', 'green', 'yellow'];
+
+const BOTTLE_STYLES: Record<BottleColor, { bg: string; light: string; dark: string; border: string }> = {
+  red: { bg: '#ef4444', light: '#f87171', dark: '#991b1b', border: '#7f1d1d' },
+  blue: { bg: '#3b82f6', light: '#60a5fa', dark: '#1e40af', border: '#1e3a8a' },
+  green: { bg: '#22c55e', light: '#4ade80', dark: '#15803d', border: '#166534' },
+  yellow: { bg: '#eab308', light: '#facc15', dark: '#854d0e', border: '#713f12' },
+};
+
+export default function BottlePuzzle() {
+  const [topBottles, setTopBottles] = useState<BottleColor[]>([]);
+  const [targetBottles, setTargetBottles] = useState<BottleColor[]>([]);
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [winner, setWinner] = useState(false);
+  const [characterPos, setCharacterPos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    initGame();
+  }, []);
+
+  const initGame = () => {
+    const shuffledTargets = [...COLORS].sort(() => Math.random() - 0.5);
+    setTargetBottles(shuffledTargets);
+    const shuffledTop = [...shuffledTargets].sort(() => Math.random() - 0.5);
+    setTopBottles(shuffledTop);
+    setWinner(false);
+    setDraggedIdx(null);
+    setCharacterPos({ x: 0, y: 0 });
+  };
+
+  const handleDragStart = (idx: number, e: React.DragEvent) => {
+    if (winner) return;
+    setDraggedIdx(idx);
+
+    // Position character near the dragged bottle
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCharacterPos({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 40
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (idx: number) => {
+    if (winner || draggedIdx === null) return;
+
+    const newTop = [...topBottles];
+    [newTop[draggedIdx], newTop[idx]] = [newTop[idx], newTop[draggedIdx]];
+    setTopBottles(newTop);
+    setDraggedIdx(null);
+
+    if (newTop.every((color, i) => color === targetBottles[i])) {
+      setWinner(true);
+    }
+  };
+
+  const Bottle = ({ color, isTarget, isDragging, onDragStart, onDrop, onDragOver }: {
+    color: BottleColor;
+    isTarget: boolean;
+    isDragging: boolean;
+    onDragStart?: (idx: number, e: React.DragEvent) => void;
+    onDrop?: () => void;
+    onDragOver?: (e: React.DragEvent) => void;
+  }) => {
+    const style = BOTTLE_STYLES[color];
+
+    return (
+      <div
+        draggable={!isTarget}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        className={`relative transition-all duration-300 ${isDragging ? 'opacity-40 scale-90' : 'hover:scale-105'} ${isTarget ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
+        style={{ width: '64px', height: '130px' }}
+      >
+        {/* Bottle Neck */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-6 rounded-t-sm"
+          style={{
+            background: `linear-gradient(90deg, ${style.dark}, ${style.bg}, ${style.dark})`,
+            border: `1px solid ${style.border}`
+          }}
+        />
+        {/* Bottle Body */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-4/5 rounded-b-2xl"
+          style={{
+            background: `linear-gradient(90deg, ${style.dark} 0%, ${style.light} 50%, ${style.dark} 100%)`,
+            border: `2px solid ${style.border}`,
+            boxShadow: 'inset -6px 0 10px rgba(0,0,0,0.4), 0 8px 15px rgba(0,0,0,0.2)',
+          }}
+        >
+          {/* Reflection */}
+          <div className="absolute left-2 top-2 w-2 h-1/2 bg-white/30 rounded-full blur-[1px]" />
+        </div>
+        {isTarget && (
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Target</div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-[#fdfcf0] dark:bg-slate-950 py-12 px-4 overflow-hidden relative">
+      {/* Floating decorative elements */}
+      <div className="absolute top-10 left-10 w-32 h-32 bg-yellow-200/30 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 right-10 w-48 h-48 bg-blue-200/20 rounded-full blur-3xl" />
+
+      <div className="max-w-3xl mx-auto flex flex-col items-center gap-16 relative">
+
+        <Link href="/" className="self-start px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium">
+          ← Back to Games
+        </Link>
+
+        <div className="text-center space-y-4 z-10">
+          <h1 className="text-5xl font-black text-gray-900 dark:text-white tracking-tight">
+            <span className="text-blue-500">🍾</span> Bottle Swap
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">
+            Drag the bottles to match the target colors!
+          </p>
+        </div>
+
+        {/* Character - the "Player" */}
+        <div
+          className="fixed pointer-events-none transition-all duration-300 ease-out z-50 text-5xl"
+          style={{
+            left: characterPos.x,
+            top: characterPos.y,
+            transform: 'translate(-50%, -100%)',
+            opacity: draggedIdx !== null ? 1 : 0,
+            transition: 'all 0.2s ease-out'
+          }}
+        >
+          👨‍🔬
+        </div>
+
+        {winner && (
+          <div className="bg-green-500 text-white px-8 py-4 rounded-2xl font-black text-2xl animate-bounce shadow-2xl z-10 border-4 border-white">
+            🎉 PERFECT MATCH!
+          </div>
+        )}
+
+        <div className="flex flex-col gap-28 items-center relative z-10">
+          {/* Top Row (Swappable) */}
+          <div className="flex gap-10 p-10 bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl border-8 border-white dark:border-gray-800 relative">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">
+              Player's Shelf
+            </div>
+            {topBottles.map((color, i) => (
+              <Bottle
+                key={`top-${i}`}
+                color={color}
+                isTarget={false}
+                isDragging={draggedIdx === i}
+                onDragStart={(idx, e) => handleDragStart(idx, e)}
+                onDrop={() => handleDrop(i)}
+                onDragOver={handleDragOver}
+              />
+            ))}
+          </div>
+
+          {/* Bottom Row (Target) */}
+          <div className="flex gap-10 p-10 bg-gray-100 dark:bg-gray-800/50 rounded-[40px] border-4 border-dashed border-gray-300 dark:border-gray-700 relative">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gray-400 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">
+              Target Sequence
+            </div>
+            {targetBottles.map((color, i) => (
+              <Bottle
+                key={`target-${i}`}
+                color={color}
+                isTarget={true}
+                isDragging={false}
+              />
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={initGame}
+          className="px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full font-black text-xl hover:scale-105 transition-all shadow-xl hover:shadow-blue-500/40 active:scale-95"
+        >
+          🔄 Reset Game
+        </button>
+
+        <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 rounded-2xl backdrop-blur-sm border border-white/20">
+          <p className="font-bold mb-2 text-gray-700 dark:text-gray-300">How to play:</p>
+          <div className="space-y-2">
+            <p>1. 🖱️ <span className="font-semibold">Drag</span> a bottle from the top shelf.</p>
+            <p>2. 🎯 <span className="font-semibold">Drop</span> it on another bottle to swap.</p>
+            <p>3. ✨ <span className="font-semibold">Align</span> colors with the target row to win!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

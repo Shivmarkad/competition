@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 type BottleColor = 'red' | 'blue' | 'green' | 'yellow';
@@ -25,11 +25,11 @@ export default function BottlePuzzle() {
   const [isDragging, setIsDragging] = useState(false);
   const [isAutoSolving, setIsAutoSolving] = useState(false);
 
-  useEffect(() => {
-    initGame();
-    // Initial character position
-    setCharPos({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0 });
-  }, []);
+  // Refs keep the latest drag values without forcing the effect to re-subscribe
+  // listeners on every mouse move (dragPos used to be in the effect deps, which
+  // tore down and re-added mousemove/mouseup listeners constantly).
+  const dragPosRef = useRef({ x: 0, y: 0 });
+  const draggingIdxRef = useRef<number | null>(null);
 
   const initGame = () => {
     const shuffledTargets = [...COLORS].sort(() => Math.random() - 0.5);
@@ -41,6 +41,12 @@ export default function BottlePuzzle() {
     setIsDragging(false);
     setIsAutoSolving(false);
   };
+
+  useEffect(() => {
+    initGame();
+    // Initial character position
+    setCharPos({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0 });
+  }, []);
 
   const handleMouseDown = (idx: number, e: any) => {
     if (winner || isAutoSolving) return;
@@ -57,7 +63,9 @@ export default function BottlePuzzle() {
     }
 
     setDraggingIdx(idx);
+    draggingIdxRef.current = idx;
     setIsDragging(true);
+    dragPosRef.current = { x: clientX, y: clientY };
     setDragPos({ x: clientX, y: clientY });
     setCharPos({ x: clientX, y: clientY - 50 });
   };
@@ -68,6 +76,7 @@ export default function BottlePuzzle() {
       const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
 
       if (isDragging) {
+        dragPosRef.current = { x: clientX, y: clientY };
         setDragPos({ x: clientX, y: clientY });
         setCharPos({ x: clientX, y: clientY - 60 });
       } else {
@@ -82,18 +91,23 @@ export default function BottlePuzzle() {
     const handleMouseUp = () => {
       if (!isDragging) return;
 
-      if (draggingIdx !== null) {
+      // Capture the source index before clearing the ref; the deferred
+      // setTimeout(0) swap runs after draggingIdxRef.current has been nulled,
+      // so we must not read the ref inside the callback.
+      const sourceIdx = draggingIdxRef.current;
+      if (sourceIdx !== null) {
         setTimeout(() => {
-          const element = document.elementFromPoint(dragPos.x, dragPos.y);
+          const currentDragPos = dragPosRef.current;
+          const element = document.elementFromPoint(currentDragPos.x, currentDragPos.y);
           const bottleWrapper = element?.closest('[data-bottle-idx]');
 
           if (bottleWrapper) {
             const targetIdx = parseInt(bottleWrapper.getAttribute('data-bottle-idx') || '-1', 10);
 
-            if (targetIdx !== -1 && targetIdx !== draggingIdx) {
+            if (targetIdx !== -1 && targetIdx !== sourceIdx) {
               setTopBottles(prevTop => {
                 const newTop = [...prevTop];
-                [newTop[draggingIdx], newTop[targetIdx]] = [newTop[targetIdx], newTop[draggingIdx]];
+                [newTop[sourceIdx], newTop[targetIdx]] = [newTop[targetIdx], newTop[sourceIdx]];
 
                 if (newTop.every((color, i) => color === targetBottles[i])) {
                   setWinner(true);
@@ -106,6 +120,7 @@ export default function BottlePuzzle() {
       }
 
       setDraggingIdx(null);
+      draggingIdxRef.current = null;
       setIsDragging(false);
     };
 
@@ -120,7 +135,7 @@ export default function BottlePuzzle() {
       window.removeEventListener('touchmove', handleMouseMove);
       window.removeEventListener('touchend', handleMouseUp);
     };
-  }, [isDragging, draggingIdx, targetBottles, dragPos]);
+  }, [isDragging, targetBottles]);
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -195,6 +210,7 @@ export default function BottlePuzzle() {
 
     return (
       <div
+        data-color={color}
         onMouseDown={(e) => onStart?.(index!, e)}
         onTouchStart={(e) => onStart?.(index!, e)}
         className={`relative transition-all duration-200 ${isDragging ? 'opacity-0 pointer-events-none' : 'hover:scale-105'} ${isTarget ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
@@ -272,6 +288,10 @@ export default function BottlePuzzle() {
             {/* Right Hand */}
             <div className="absolute -right-10 top-1/2 -translate-y-1/2 text-3xl animate-bounce scale-x-[-1]">🖐️</div>
 
+            {/* debug */}
+            {typeof window !== 'undefined' && typeof (globalThis as any).__bp_dbg !== 'undefined' && (
+              <div>{`dbg draggingIdx=${draggingIdx} topBottles=${JSON.stringify(topBottles)} isDragging=${isDragging} color=${topBottles[draggingIdx ?? -1]}`}</div>
+            )}
             <Bottle
               color={topBottles[draggingIdx]}
               isTarget={false}

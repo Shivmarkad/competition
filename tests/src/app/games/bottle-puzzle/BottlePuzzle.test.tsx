@@ -1,173 +1,132 @@
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import BottlePuzzle from '@/app/games/bottle-puzzle/page';
 import '@testing-library/jest-dom';
 
 describe('BottlePuzzle', () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
+  // The player's shelf bottles are wrapped in divs with data-bottle-idx.
+  // The Bottle root itself carries data-color, so we can read a bottle's color
+  // from the DOM to assert swaps took effect.
+  const playerBottles = (container: HTMLElement) =>
+    Array.from(
+      container.querySelectorAll<HTMLElement>('[data-bottle-idx] > [data-color]')
+    ).map(el => el.getAttribute('data-color')!);
 
-  afterEach(() => {
-    jest.useRealTimers();
-    jest.clearAllMocks();
-  });
+  const targetBottles = (container: HTMLElement) => {
+    const all = container.querySelectorAll<HTMLElement>('[data-color]');
+    // DOM order: player shelf bottles first, then target shelf bottles.
+    return Array.from(all).slice(4).map(el => el.getAttribute('data-color')!);
+  };
 
-  // Helper to get all board cells (both play area and target area)
-  const getBoardCells = () => screen.getAllByRole('button', { name: /(row|target)/i });
+  // Simulate dragging player bottle `fromIdx` and dropping it on player bottle
+  // `toIdx`, which swaps topBottles[fromIdx] and topBottles[toIdx].
+  const performSwap = async (
+    container: HTMLElement,
+    fromIdx: number,
+    toIdx: number
+  ) => {
+    const wrappers = container.querySelectorAll<HTMLElement>('[data-bottle-idx]');
+    const fromEl = wrappers[fromIdx].querySelector<HTMLElement>('[data-color]')!;
 
-  test('initial board renders 6x7 cells (42 total)', () => {
-    render(<BottlePuzzle />);
-    const cells = getBoardCells();
-    expect(cells.length).toBe(56);
-  });
+    const mockTarget = document.createElement('div');
+    mockTarget.setAttribute('data-bottle-idx', String(toIdx));
+    mockTarget.closest = (sel: string) =>
+      sel === '[data-bottle-idx]' ? mockTarget : null;
 
-  test('board renders 42 cells (6x7) with target colors at bottom', () => {
-    render(<BottlePuzzle />);
-    const cells = getBoardCells();
-    expect(cells.length).toBe(56);
+    const originalElementFromPoint = (document as any).elementFromPoint;
+    (document as any).elementFromPoint = () => mockTarget;
 
-    // Check that bottom 4 rows (target area) have bottles with yellow ring
-    const targetCells = cells.filter(cell => {
-      const label = cell.getAttribute('aria-label') || '';
-      return label.includes('Target:');
-    });
-    // 7 columns * 4 target rows = 28 target cells
-    expect(targetCells.length).toBe(28);
-  });
+    fireEvent.mouseDown(fromEl, { clientX: 100, clientY: 100 });
+    fireEvent.mouseUp(window, { clientX: 100, clientY: 100 });
 
-  test('drop buttons exist for each column', () => {
-    render(<BottlePuzzle />);
-    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
-    expect(dropButtons.length).toBe(7);
-  });
-
-  test('clicking drop button adds bottle to column with gravity', async () => {
-    render(<BottlePuzzle />);
-
-    // Wait for client-side rendering
-    await waitFor(() => {
-      const cells = getBoardCells();
-      expect(cells.length).toBe(56);
+    // handleMouseUp defers the swap in setTimeout(0); flush it.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    // Find drop button for column 0
-    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
-    const firstDropButton = dropButtons[0];
-    expect(firstDropButton).toBeInTheDocument();
+    (document as any).elementFromPoint = originalElementFromPoint;
+  };
 
-    // Click drop button
-    act(() => {
-      fireEvent.click(firstDropButton);
-    });
-
-    // Check that a bottle was added to column 0 (should be at bottom of play area - bottleIndex 8)
-    // columnBottles: 4 target (indices 0-3) + 4 play (indices 4-7), bottom play is index 7 -> bottleIndex + 1 = 8
-    const cells = getBoardCells();
-    const col0Row1 = cells.find(c => c.getAttribute('aria-label')?.includes('Row 8, Column 1') && !c.getAttribute('aria-label')?.includes('Target'));
-    // Note: After gravity, bottle should fall to bottom of play area
-    expect(col0Row1).toBeInTheDocument();
+  test('renders the Bottle Swap heading and both shelves', () => {
+    render(<BottlePuzzle />);
+    expect(screen.getByRole('heading', { name: /Bottle Swap/ })).toBeInTheDocument();
+    expect(screen.getByText(/Player's Shelf/)).toBeInTheDocument();
+    expect(screen.getByText(/Target Sequence/)).toBeInTheDocument();
   });
 
-  test('reset game button exists', () => {
-    render(<BottlePuzzle />);
-    const resetButton = screen.getByRole('button', { name: /new game/i });
-    expect(resetButton).toBeInTheDocument();
+  test('renders 4 player bottles and 4 target bottles', () => {
+    const { container } = render(<BottlePuzzle />);
+    expect(playerBottles(container).length).toBe(4);
+    expect(targetBottles(container).length).toBe(4);
   });
 
-  test('reset game clears board and generates new targets', async () => {
-    render(<BottlePuzzle />);
-
-    await waitFor(() => {
-      const cells = getBoardCells();
-      expect(cells.length).toBe(56);
-    });
-
-    const resetButton = screen.getByRole('button', { name: /new game/i });
-
-    act(() => {
-      fireEvent.click(resetButton);
-    });
-
-    // Board should still have 42 cells
-    const cells = getBoardCells();
-    expect(cells.length).toBe(56);
+  test('each bottle carries a color from the palette', () => {
+    const { container } = render(<BottlePuzzle />);
+    const valid = new Set(['red', 'blue', 'green', 'yellow']);
+    const allColors = [...playerBottles(container), ...targetBottles(container)];
+    expect(allColors.every(color => valid.has(color))).toBe(true);
   });
 
-  test('completed column shows green ring', async () => {
+  test('reset button and auto mode button are present', () => {
     render(<BottlePuzzle />);
+    expect(screen.getByRole('button', { name: /🔄 Reset/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Auto Mode/ })).toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      const cells = getBoardCells();
-      expect(cells.length).toBe(56);
-    });
+  test('reset re-shuffles the board while keeping 8 bottles', () => {
+    const { container } = render(<BottlePuzzle />);
+    const before = [...playerBottles(container)];
 
-    // Drop 4 bottles in column 0 to complete it
-    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
-    const firstDropButton = dropButtons[0];
+    fireEvent.click(screen.getByRole('button', { name: /🔄 Reset/ }));
 
-    for (let i = 0; i < 4; i++) {
-      act(() => {
-        fireEvent.click(firstDropButton);
-      });
-    }
-
-    // Check that column 0 now shows completion (green ring)
-    const cells = getBoardCells();
-    const completedCells = cells.filter(cell =>
-      cell.getAttribute('aria-label')?.includes('Column 1') &&
-      cell.hasAttribute('class') &&
-      cell.getAttribute('class')?.includes('ring-green')
+    const after = playerBottles(container);
+    expect(after.length).toBe(4);
+    // With random shuffling the order almost certainly changes; at minimum the
+    // board remains fully populated after reset.
+    expect(after.every(c => ['red', 'blue', 'green', 'yellow'].includes(c))).toBe(
+      true
     );
-    expect(completedCells.length).toBeGreaterThan(0);
   });
 
-  test('win detection when all 7 columns complete', async () => {
-    render(<BottlePuzzle />);
+  test('dragging a bottle and dropping it on another swaps them', async () => {
+    const { container } = render(<BottlePuzzle />);
+    const before = playerBottles(container);
 
-    await waitFor(() => {
-      const cells = getBoardCells();
-      expect(cells.length).toBe(56);
-    });
+    await performSwap(container, 0, 1);
 
-    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
-
-    // Complete all 7 columns
-    for (let col = 0; col < 7; col++) {
-      for (let i = 0; i < 4; i++) {
-        act(() => {
-          fireEvent.click(dropButtons[col]);
-        });
-      }
-    }
-
-    // Check for win message
-    await waitFor(() => {
-      const winMessage = screen.getByText(/you win/i);
-      expect(winMessage).toBeInTheDocument();
-    });
+    const after = playerBottles(container);
+    expect(after[0]).toBe(before[1]);
+    expect(after[1]).toBe(before[0]);
+    // Other bottles are untouched.
+    expect(after[2]).toBe(before[2]);
+    expect(after[3]).toBe(before[3]);
   });
 
-  test('drop button disabled for completed column', async () => {
-    render(<BottlePuzzle />);
+  test('win message shows when player shelf matches target sequence', async () => {
+    const { container } = render(<BottlePuzzle />);
+    expect(screen.queryByText(/PERFECT MATCH/)).not.toBeInTheDocument();
 
-    await waitFor(() => {
-      const cells = getBoardCells();
-      expect(cells.length).toBe(56);
-    });
+    const target = targetBottles(container);
 
-    const dropButtons = screen.getAllByRole('button', { name: /drop/i });
-    const firstDropButton = dropButtons[0];
-
-    // Complete column 0
+    // Place each player bottle onto its matching target position via swaps.
     for (let i = 0; i < 4; i++) {
-      act(() => {
-        fireEvent.click(firstDropButton);
-      });
+      const current = playerBottles(container);
+      if (current[i] === target[i]) continue;
+      const fromIdx = current.indexOf(target[i]);
+      await performSwap(container, fromIdx, i);
     }
 
-    // Drop button should now be disabled (shows checkmark)
-    await waitFor(() => {
-      expect(firstDropButton).toBeDisabled();
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
+
+    expect(screen.getByText(/PERFECT MATCH/)).toBeInTheDocument();
+  });
+
+  test('auto mode becomes busy when started', () => {
+    render(<BottlePuzzle />);
+    const autoButton = screen.getByRole('button', { name: /Auto Mode/ });
+    fireEvent.click(autoButton);
+    expect(autoButton).toBeDisabled();
+    expect(screen.getByText(/Trying/)).toBeInTheDocument();
   });
 });

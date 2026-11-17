@@ -128,20 +128,91 @@ describe('BottlePuzzle', () => {
     expect(screen.getByRole('checkbox', { name: /Auto Mode/ })).not.toBeChecked();
   });
 
-  test('auto mode runs random swaps by itself until solved', async () => {
-    const { container } = render(<BottlePuzzle />);
-    const checkbox = screen.getByRole('checkbox', { name: /Auto Mode/ });
-    fireEvent.click(checkbox);
-    expect(checkbox).toBeChecked();
+  test(
+    'auto mode performs swaps by itself without user interaction',
+    async () => {
+      const { container } = render(<BottlePuzzle />);
+      const checkbox = screen.getByRole('checkbox', { name: /Auto Mode/ });
 
-    // Wait long enough for several auto swaps to fire (interval is 1200ms).
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 3500));
-    });
+      // Starts off.
+      expect(checkbox).not.toBeChecked();
 
-    // With auto mode running on a fresh random board, colors stay valid even if
-    // not yet solved.
-    const player = playerBottles(container);
-    expect(player.every(c => ['red', 'blue', 'green', 'yellow'].includes(c))).toBe(true);
-  });
+      const initial = playerBottles(container);
+
+      // Turn auto mode on — no drag or click on any bottle happens after this.
+      fireEvent.click(checkbox);
+      expect(checkbox).toBeChecked();
+
+      // Wait long enough for several auto swap cycles (interval is 1200ms).
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      });
+
+      // The board must have changed from the initial state — proof that auto mode
+      // is swapping bottles on its own, with no user dragging involved.
+      const after = playerBottles(container);
+      expect(after).not.toEqual(initial);
+
+      // Colors remain valid even while auto mode is shuffling.
+      expect(after.every(c => ['red', 'blue', 'green', 'yellow'].includes(c))).toBe(
+        true
+      );
+
+      // Turn auto mode off — the board should stop changing.
+      fireEvent.click(checkbox);
+      expect(checkbox).not.toBeChecked();
+
+      // Auto mode defers each swap by 700ms; clearing the interval does not cancel
+      // an in-flight deferred swap. Let any pending swap settle before sampling the
+      // stable board, so we don't assert against a mid-swap state.
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      });
+      const beforeOff = playerBottles(container);
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      });
+      expect(playerBottles(container)).toEqual(beforeOff);
+    },
+    25000
+  );
+
+  test(
+    'auto mode can solve the puzzle by itself',
+    async () => {
+      const { container } = render(<BottlePuzzle />);
+
+      const target = targetBottles(container);
+      const current = playerBottles(container);
+
+      // Ensure the board starts unsolved so we are testing auto mode solving, not
+      // auto mode idling on an already-solved board.
+      if (current.every((color, i) => color === target[i])) {
+        await performSwap(container, 0, 1);
+      }
+
+      expect(screen.queryByText(/PERFECT MATCH/)).not.toBeInTheDocument();
+
+      const checkbox = screen.getByRole('checkbox', { name: /Auto Mode/ });
+      fireEvent.click(checkbox);
+      expect(checkbox).toBeChecked();
+
+      // Auto mode swaps random pairs every 1200ms; poll for the win banner with a
+      // hard bound so the test cannot hang forever. Random swapping can occasionally
+      // take longer to land on the target permutation, so give it ample iterations.
+      let solved = false;
+      for (let i = 0; i < 140; i++) {
+        await act(async () => {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        });
+        if (screen.queryByText(/PERFECT MATCH/)) {
+          solved = true;
+          break;
+        }
+      }
+
+      expect(solved).toBe(true);
+    },
+    120000
+  );
 });

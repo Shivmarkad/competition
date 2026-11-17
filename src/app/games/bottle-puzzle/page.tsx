@@ -24,6 +24,7 @@ export default function BottlePuzzle() {
   const [charPos, setCharPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [autoModeEnabled, setAutoModeEnabled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const autoModeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Refs keep the latest drag values without forcing the effect to re-subscribe
@@ -46,6 +47,14 @@ export default function BottlePuzzle() {
     initGame();
     // Initial character position
     setCharPos({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0 });
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const handleMouseDown = (idx: number, e: any) => {
@@ -222,7 +231,7 @@ export default function BottlePuzzle() {
         onMouseDown={(e) => onStart?.(index!, e)}
         onTouchStart={(e) => onStart?.(index!, e)}
         className={`relative transition-all duration-200 ${isDragging ? 'opacity-0 pointer-events-none' : 'hover:scale-105'} ${isTarget ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
-        style={{ width: '64px', height: '130px' }}
+        style={{ width: isMobile ? '48px' : '64px', height: isMobile ? '96px' : '130px' }}
       >
         <div
           className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-6 rounded-t-sm"
@@ -249,17 +258,17 @@ export default function BottlePuzzle() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdfcf0] dark:bg-slate-950 py-12 px-4 overflow-hidden relative select-none touch-none">
+    <div className={`min-h-screen bg-[#fdfcf0] dark:bg-slate-950 py-8 px-4 ${isMobile ? 'py-6' : 'py-8'} overflow-hidden relative select-none`}>
       <div className="absolute top-10 left-10 w-32 h-32 bg-yellow-200/30 rounded-full blur-3xl" />
       <div className="absolute bottom-20 right-10 w-48 h-48 bg-blue-200/20 rounded-full blur-3xl" />
 
-      <div className="max-w-3xl mx-auto flex flex-col items-center gap-16 relative">
+      <div className={`max-w-xl mx-auto flex flex-col items-center relative ${isMobile ? 'gap-12' : 'gap-16'}`}>
         <Link href="/" className="self-start px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium">
           ← Back to Games
         </Link>
 
-        <div className="text-center space-y-4 z-10">
-          <h1 className="text-5xl font-black text-gray-900 dark:text-white tracking-tight">
+        <div className={`text-center space-y-4 z-10 ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
+          <h1 className={`font-black text-gray-900 dark:text-white tracking-tight ${isMobile ? 'text-4xl' : 'text-5xl'}`}>
             <span className="text-blue-500">🍾</span> Bottle Swap
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">
@@ -315,8 +324,8 @@ export default function BottlePuzzle() {
           </div>
         )}
 
-        <div className="flex flex-col gap-28 items-center relative z-10">
-          <div className="flex gap-10 p-10 bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl border-8 border-white dark:border-gray-800 relative">
+        <div className={`flex flex-col items-center relative z-10 ${isMobile ? 'gap-16' : 'gap-28'}`}>
+          <div className={`flex gap-6 md:gap-10 p-6 md:p-10 bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl border-8 border-white dark:border-gray-800 relative`}>
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">
               Player's Shelf
             </div>
@@ -337,7 +346,7 @@ export default function BottlePuzzle() {
             ))}
           </div>
 
-          <div className="flex gap-10 p-10 bg-gray-100 dark:bg-gray-800/50 rounded-[40px] border-4 border-dashed border-gray-300 dark:border-gray-700 relative">
+          <div className={`flex gap-6 md:gap-10 p-6 md:p-10 bg-gray-100 dark:bg-gray-800/50 rounded-[40px] border-4 border-dashed border-gray-300 dark:border-gray-700 relative`}>
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gray-400 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">
               Target Sequence
             </div>
@@ -353,10 +362,10 @@ export default function BottlePuzzle() {
           </div>
         </div>
 
-        <div className="flex gap-4 items-center">
+        <div className={`flex ${isMobile ? 'flex-col gap-3' : 'gap-4'} items-center ${isMobile ? 'w-full' : ''}`}>
           <button
             onClick={initGame}
-            className="px-8 py-3 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full font-bold text-lg hover:scale-105 transition-all shadow-md active:scale-95"
+            className={`w-full md:w-auto px-8 py-3 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full font-bold text-lg hover:scale-105 transition-all shadow-md active:scale-95 ${isMobile ? 'text-base' : ''}`}
           >
             🔄 Reset
           </button>
@@ -373,7 +382,7 @@ export default function BottlePuzzle() {
           </label>
         </div>
 
-        <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 rounded-2xl backdrop-blur-sm border border-white/20">
+        <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 md:p-8 rounded-2xl backdrop-blur-sm border border-white/20">
           <p className="font-bold mb-2 text-gray-700 dark:text-gray-300">How to play:</p>
           <div className="space-y-2">
             <p>1. 🖱️ <span className="font-semibold">Drag</span> a bottle from the top shelf.</p>

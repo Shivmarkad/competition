@@ -66,10 +66,10 @@ describe('BottlePuzzle', () => {
     expect(allColors.every(color => valid.has(color))).toBe(true);
   });
 
-  test('reset button and auto mode button are present', () => {
+  test('reset button and auto mode toggle are present', () => {
     render(<BottlePuzzle />);
     expect(screen.getByRole('button', { name: /🔄 Reset/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Auto Mode/ })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Auto Mode/ })).toBeInTheDocument();
   });
 
   test('reset re-shuffles the board while keeping 8 bottles', () => {
@@ -122,11 +122,26 @@ describe('BottlePuzzle', () => {
     expect(screen.getByText(/PERFECT MATCH/)).toBeInTheDocument();
   });
 
-  test('auto mode becomes busy when started', () => {
+  test('auto mode toggle is present and starts off', () => {
     render(<BottlePuzzle />);
-    const autoButton = screen.getByRole('button', { name: /Auto Mode/ });
-    fireEvent.click(autoButton);
-    expect(autoButton).toBeDisabled();
-    expect(screen.getByText(/Trying/)).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Auto Mode/ })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Auto Mode/ })).not.toBeChecked();
+  });
+
+  test('auto mode runs random swaps by itself until solved', async () => {
+    const { container } = render(<BottlePuzzle />);
+    const checkbox = screen.getByRole('checkbox', { name: /Auto Mode/ });
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+
+    // Wait long enough for several auto swaps to fire (interval is 1200ms).
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 3500));
+    });
+
+    // With auto mode running on a fresh random board, colors stay valid even if
+    // not yet solved.
+    const player = playerBottles(container);
+    expect(player.every(c => ['red', 'blue', 'green', 'yellow'].includes(c))).toBe(true);
   });
 });

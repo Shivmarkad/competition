@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 
 type BottleColor = 'red' | 'blue' | 'green' | 'yellow';
@@ -23,7 +23,8 @@ export default function BottlePuzzle() {
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [charPos, setCharPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [isAutoSolving, setIsAutoSolving] = useState(false);
+  const [autoModeEnabled, setAutoModeEnabled] = useState(false);
+  const autoModeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Refs keep the latest drag values without forcing the effect to re-subscribe
   // listeners on every mouse move (dragPos used to be in the effect deps, which
@@ -39,7 +40,6 @@ export default function BottlePuzzle() {
     setWinner(false);
     setDraggingIdx(null);
     setIsDragging(false);
-    setIsAutoSolving(false);
   };
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function BottlePuzzle() {
   }, []);
 
   const handleMouseDown = (idx: number, e: any) => {
-    if (winner || isAutoSolving) return;
+    if (winner || autoModeEnabled) return;
 
     let clientX, clientY;
     if (e.touches && e.touches.length > 0) {
@@ -137,50 +137,42 @@ export default function BottlePuzzle() {
     };
   }, [isDragging, targetBottles]);
 
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  // Automatic random swaps on an interval, exactly like the battle game's Auto Battle.
+  // Keeps swapping random bottles until the player shelf matches the target sequence,
+  // then stops automatically. Disabled while dragging or after a win.
+  const runAutoMode = useCallback(() => {
+    if (!autoModeEnabled || winner || isDragging) return;
 
-  const autoRandomSwap = async () => {
-    setIsAutoSolving(true);
+    const currentTop = topBottles;
+    if (currentTop.every((color, i) => color === targetBottles[i])) {
+      setWinner(true);
+      return;
+    }
 
-    while (!winner) {
-      const currentTop = await new Promise<BottleColor[]>(resolve => {
-        setTopBottles(prev => { resolve(prev); return prev; });
-      });
+    const idx1 = Math.floor(Math.random() * 4);
+    let idx2 = Math.floor(Math.random() * 4);
+    while (idx1 === idx2) {
+      idx2 = Math.floor(Math.random() * 4);
+    }
 
-      if (currentTop.every((color, i) => color === targetBottles[i])) {
-        setWinner(true);
-        break;
-      }
+    const sourceEl = document.querySelector(`[data-bottle-idx="${idx1}"]`);
+    if (sourceEl) {
+      const rect = sourceEl.getBoundingClientRect();
+      setCharPos({ x: rect.left + rect.width / 2, y: rect.top - 60 });
+    }
 
-      const idx1 = Math.floor(Math.random() * 4);
-      let idx2 = Math.floor(Math.random() * 4);
-      while (idx1 === idx2) {
-        idx2 = Math.floor(Math.random() * 4);
-      }
+    setDraggingIdx(idx1);
+    setIsDragging(true);
+    const startRect = sourceEl?.getBoundingClientRect() || { left: 0, top: 0, width: 64, height: 130 };
+    setDragPos({ x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 });
+    setCharPos({ x: startRect.left + startRect.width / 2, y: startRect.top - 60 });
 
-      const sourceEl = document.querySelector(`[data-bottle-idx="${idx1}"]`);
-      if (sourceEl) {
-        const rect = sourceEl.getBoundingClientRect();
-        setCharPos({ x: rect.left + rect.width / 2, y: rect.top - 60 });
-        await sleep(600);
-      }
-
-      setDraggingIdx(idx1);
-      setIsDragging(true);
-      const startRect = sourceEl?.getBoundingClientRect() || { left: 0, top: 0, width: 64, height: 130 };
-      setDragPos({ x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 });
-      setCharPos({ x: startRect.left + startRect.width / 2, y: startRect.top - 60 });
-      await sleep(400);
-
+    setTimeout(() => {
       const targetEl = document.querySelector(`[data-bottle-idx="${idx2}"]`);
       if (targetEl) {
         const rect = targetEl.getBoundingClientRect();
-        const targetX = rect.left + rect.width / 2;
-        const targetY = rect.top + rect.height / 2;
-
-        setDragPos({ x: targetX, y: targetY });
-        setCharPos({ x: targetX, y: rect.top - 60 });
-        await sleep(700);
+        setDragPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+        setCharPos({ x: rect.left + rect.width / 2, y: rect.top - 60 });
       }
 
       setTopBottles(prevTop => {
@@ -194,10 +186,26 @@ export default function BottlePuzzle() {
 
       setDraggingIdx(null);
       setIsDragging(false);
-      await sleep(600);
+    }, 700);
+  }, [autoModeEnabled, winner, isDragging, topBottles, targetBottles]);
+
+  useEffect(() => {
+    if (!autoModeEnabled) {
+      if (autoModeTimerRef.current) {
+        clearInterval(autoModeTimerRef.current);
+        autoModeTimerRef.current = null;
+      }
+      return;
     }
-    setIsAutoSolving(false);
-  };
+
+    autoModeTimerRef.current = setInterval(runAutoMode, 1200);
+    return () => {
+      if (autoModeTimerRef.current) {
+        clearInterval(autoModeTimerRef.current);
+        autoModeTimerRef.current = null;
+      }
+    };
+  }, [autoModeEnabled, runAutoMode]);
 
   const Bottle = ({ color, isTarget, isDragging, onStart, index }: {
     color: BottleColor;
@@ -345,20 +353,24 @@ export default function BottlePuzzle() {
           </div>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
           <button
             onClick={initGame}
             className="px-8 py-3 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full font-bold text-lg hover:scale-105 transition-all shadow-md active:scale-95"
           >
             🔄 Reset
           </button>
-          <button
-            onClick={autoRandomSwap}
-            disabled={isAutoSolving || winner}
-            className={`px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full font-bold text-lg transition-all shadow-xl hover:scale-105 active:scale-95 ${isAutoSolving ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isAutoSolving ? '🤖 Trying...' : '🤖 Auto Mode'}
-          </button>
+          <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+            <input
+              type="checkbox"
+              checked={autoModeEnabled}
+              onChange={(e) => setAutoModeEnabled(e.target.checked)}
+              className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+            />
+            <span className="text-gray-700 dark:text-gray-300 font-medium">
+              🤖 Auto Mode {winner ? '(solved!)' : autoModeEnabled ? '(running...)' : ''}
+            </span>
+          </label>
         </div>
 
         <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 rounded-2xl backdrop-blur-sm border border-white/20">

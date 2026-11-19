@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'out',
   plugins: {
     AdMob: {
-      appId: 'ca-app-pub-xxxxxxxxxxxxxxxx~wwwwwwwwww', // Replace with your AdMob App ID
+      appId: 'ca-app-pub-3940256099942544~3347511713', // Google's official test AdMob App ID
       testingDevices: ['auto'],
       initializeForTesting: true,
     },

@@ -11,6 +11,7 @@ module.exports = {
     }],
   },
   testMatch: ['**/tests/**/*.test.(ts|tsx)'],
+  testPathIgnorePatterns: ['/node_modules/', '/\\.claude/'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',

@@ -14,7 +14,7 @@
     "@capacitor/android": "^8.5.3",
     "@capacitor/cli": "^8.5.3",
     "@capacitor/core": "^8.5.3",
-    "next": "^16.4.3",
+    "next": "16.4.6",
     "react": "19.3.0",
     "react-cookie-consent": "^9.0.0",
     "react-dom": "19.3.0"

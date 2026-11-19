@@ -3,6 +3,9 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   output: "export",
+  experimental: {
+    agentUpgrade: "security",
+  },
   images: {
     unoptimized: true,
   },

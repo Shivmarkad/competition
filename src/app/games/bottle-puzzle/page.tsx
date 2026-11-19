@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 
 type BottleColor = 'red' | 'blue' | 'green' | 'yellow';
@@ -23,13 +23,15 @@ export default function BottlePuzzle() {
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [charPos, setCharPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [isAutoSolving, setIsAutoSolving] = useState(false);
+  const [autoModeEnabled, setAutoModeEnabled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const autoModeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    initGame();
-    // Initial character position
-    setCharPos({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0 });
-  }, []);
+  // Refs keep the latest drag values without forcing the effect to re-subscribe
+  // listeners on every mouse move (dragPos used to be in the effect deps, which
+  // tore down and re-added mousemove/mouseup listeners constantly).
+  const dragPosRef = useRef({ x: 0, y: 0 });
+  const draggingIdxRef = useRef<number | null>(null);
 
   const initGame = () => {
     const shuffledTargets = [...COLORS].sort(() => Math.random() - 0.5);
@@ -39,11 +41,24 @@ export default function BottlePuzzle() {
     setWinner(false);
     setDraggingIdx(null);
     setIsDragging(false);
-    setIsAutoSolving(false);
   };
 
+  useEffect(() => {
+    initGame();
+    // Initial character position
+    setCharPos({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight - 100 : 0 });
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const handleMouseDown = (idx: number, e: any) => {
-    if (winner || isAutoSolving) return;
+    if (winner || autoModeEnabled) return;
 
     let clientX, clientY;
     if (e.touches && e.touches.length > 0) {
@@ -57,7 +72,9 @@ export default function BottlePuzzle() {
     }
 
     setDraggingIdx(idx);
+    draggingIdxRef.current = idx;
     setIsDragging(true);
+    dragPosRef.current = { x: clientX, y: clientY };
     setDragPos({ x: clientX, y: clientY });
     setCharPos({ x: clientX, y: clientY - 50 });
   };
@@ -68,6 +85,7 @@ export default function BottlePuzzle() {
       const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
 
       if (isDragging) {
+        dragPosRef.current = { x: clientX, y: clientY };
         setDragPos({ x: clientX, y: clientY });
         setCharPos({ x: clientX, y: clientY - 60 });
       } else {
@@ -82,18 +100,23 @@ export default function BottlePuzzle() {
     const handleMouseUp = () => {
       if (!isDragging) return;
 
-      if (draggingIdx !== null) {
+      // Capture the source index before clearing the ref; the deferred
+      // setTimeout(0) swap runs after draggingIdxRef.current has been nulled,
+      // so we must not read the ref inside the callback.
+      const sourceIdx = draggingIdxRef.current;
+      if (sourceIdx !== null) {
         setTimeout(() => {
-          const element = document.elementFromPoint(dragPos.x, dragPos.y);
+          const currentDragPos = dragPosRef.current;
+          const element = document.elementFromPoint(currentDragPos.x, currentDragPos.y);
           const bottleWrapper = element?.closest('[data-bottle-idx]');
 
           if (bottleWrapper) {
             const targetIdx = parseInt(bottleWrapper.getAttribute('data-bottle-idx') || '-1', 10);
 
-            if (targetIdx !== -1 && targetIdx !== draggingIdx) {
+            if (targetIdx !== -1 && targetIdx !== sourceIdx) {
               setTopBottles(prevTop => {
                 const newTop = [...prevTop];
-                [newTop[draggingIdx], newTop[targetIdx]] = [newTop[targetIdx], newTop[draggingIdx]];
+                [newTop[sourceIdx], newTop[targetIdx]] = [newTop[targetIdx], newTop[sourceIdx]];
 
                 if (newTop.every((color, i) => color === targetBottles[i])) {
                   setWinner(true);
@@ -106,6 +129,7 @@ export default function BottlePuzzle() {
       }
 
       setDraggingIdx(null);
+      draggingIdxRef.current = null;
       setIsDragging(false);
     };
 
@@ -120,52 +144,44 @@ export default function BottlePuzzle() {
       window.removeEventListener('touchmove', handleMouseMove);
       window.removeEventListener('touchend', handleMouseUp);
     };
-  }, [isDragging, draggingIdx, targetBottles, dragPos]);
+  }, [isDragging, targetBottles]);
 
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  // Automatic random swaps on an interval, exactly like the battle game's Auto Battle.
+  // Keeps swapping random bottles until the player shelf matches the target sequence,
+  // then stops automatically. Disabled while dragging or after a win.
+  const runAutoMode = useCallback(() => {
+    if (!autoModeEnabled || winner || isDragging) return;
 
-  const autoRandomSwap = async () => {
-    setIsAutoSolving(true);
+    const currentTop = topBottles;
+    if (currentTop.every((color, i) => color === targetBottles[i])) {
+      setWinner(true);
+      return;
+    }
 
-    while (!winner) {
-      const currentTop = await new Promise<BottleColor[]>(resolve => {
-        setTopBottles(prev => { resolve(prev); return prev; });
-      });
+    const idx1 = Math.floor(Math.random() * 4);
+    let idx2 = Math.floor(Math.random() * 4);
+    while (idx1 === idx2) {
+      idx2 = Math.floor(Math.random() * 4);
+    }
 
-      if (currentTop.every((color, i) => color === targetBottles[i])) {
-        setWinner(true);
-        break;
-      }
+    const sourceEl = document.querySelector(`[data-bottle-idx="${idx1}"]`);
+    if (sourceEl) {
+      const rect = sourceEl.getBoundingClientRect();
+      setCharPos({ x: rect.left + rect.width / 2, y: rect.top - 60 });
+    }
 
-      const idx1 = Math.floor(Math.random() * 4);
-      let idx2 = Math.floor(Math.random() * 4);
-      while (idx1 === idx2) {
-        idx2 = Math.floor(Math.random() * 4);
-      }
+    setDraggingIdx(idx1);
+    setIsDragging(true);
+    const startRect = sourceEl?.getBoundingClientRect() || { left: 0, top: 0, width: 64, height: 130 };
+    setDragPos({ x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 });
+    setCharPos({ x: startRect.left + startRect.width / 2, y: startRect.top - 60 });
 
-      const sourceEl = document.querySelector(`[data-bottle-idx="${idx1}"]`);
-      if (sourceEl) {
-        const rect = sourceEl.getBoundingClientRect();
-        setCharPos({ x: rect.left + rect.width / 2, y: rect.top - 60 });
-        await sleep(600);
-      }
-
-      setDraggingIdx(idx1);
-      setIsDragging(true);
-      const startRect = sourceEl?.getBoundingClientRect() || { left: 0, top: 0, width: 64, height: 130 };
-      setDragPos({ x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 });
-      setCharPos({ x: startRect.left + startRect.width / 2, y: startRect.top - 60 });
-      await sleep(400);
-
+    setTimeout(() => {
       const targetEl = document.querySelector(`[data-bottle-idx="${idx2}"]`);
       if (targetEl) {
         const rect = targetEl.getBoundingClientRect();
-        const targetX = rect.left + rect.width / 2;
-        const targetY = rect.top + rect.height / 2;
-
-        setDragPos({ x: targetX, y: targetY });
-        setCharPos({ x: targetX, y: rect.top - 60 });
-        await sleep(700);
+        setDragPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+        setCharPos({ x: rect.left + rect.width / 2, y: rect.top - 60 });
       }
 
       setTopBottles(prevTop => {
@@ -179,10 +195,26 @@ export default function BottlePuzzle() {
 
       setDraggingIdx(null);
       setIsDragging(false);
-      await sleep(600);
+    }, 700);
+  }, [autoModeEnabled, winner, isDragging, topBottles, targetBottles]);
+
+  useEffect(() => {
+    if (!autoModeEnabled) {
+      if (autoModeTimerRef.current) {
+        clearInterval(autoModeTimerRef.current);
+        autoModeTimerRef.current = null;
+      }
+      return;
     }
-    setIsAutoSolving(false);
-  };
+
+    autoModeTimerRef.current = setInterval(runAutoMode, 1200);
+    return () => {
+      if (autoModeTimerRef.current) {
+        clearInterval(autoModeTimerRef.current);
+        autoModeTimerRef.current = null;
+      }
+    };
+  }, [autoModeEnabled, runAutoMode]);
 
   const Bottle = ({ color, isTarget, isDragging, onStart, index }: {
     color: BottleColor;
@@ -195,10 +227,11 @@ export default function BottlePuzzle() {
 
     return (
       <div
+        data-color={color}
         onMouseDown={(e) => onStart?.(index!, e)}
         onTouchStart={(e) => onStart?.(index!, e)}
         className={`relative transition-all duration-200 ${isDragging ? 'opacity-0 pointer-events-none' : 'hover:scale-105'} ${isTarget ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
-        style={{ width: '64px', height: '130px' }}
+        style={{ width: isMobile ? '48px' : '64px', height: isMobile ? '96px' : '130px' }}
       >
         <div
           className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-6 rounded-t-sm"
@@ -225,17 +258,17 @@ export default function BottlePuzzle() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdfcf0] dark:bg-slate-950 py-12 px-4 overflow-hidden relative select-none touch-none">
+    <div className={`min-h-screen bg-[#fdfcf0] dark:bg-slate-950 py-8 px-4 ${isMobile ? 'py-6' : 'py-8'} overflow-hidden relative select-none`}>
       <div className="absolute top-10 left-10 w-32 h-32 bg-yellow-200/30 rounded-full blur-3xl" />
       <div className="absolute bottom-20 right-10 w-48 h-48 bg-blue-200/20 rounded-full blur-3xl" />
 
-      <div className="max-w-3xl mx-auto flex flex-col items-center gap-16 relative">
+      <div className={`max-w-xl mx-auto flex flex-col items-center relative ${isMobile ? 'gap-12' : 'gap-16'}`}>
         <Link href="/" className="self-start px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium">
           ← Back to Games
         </Link>
 
-        <div className="text-center space-y-4 z-10">
-          <h1 className="text-5xl font-black text-gray-900 dark:text-white tracking-tight">
+        <div className={`text-center space-y-4 z-10 ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
+          <h1 className={`font-black text-gray-900 dark:text-white tracking-tight ${isMobile ? 'text-4xl' : 'text-5xl'}`}>
             <span className="text-blue-500">🍾</span> Bottle Swap
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">
@@ -272,6 +305,10 @@ export default function BottlePuzzle() {
             {/* Right Hand */}
             <div className="absolute -right-10 top-1/2 -translate-y-1/2 text-3xl animate-bounce scale-x-[-1]">🖐️</div>
 
+            {/* debug */}
+            {typeof window !== 'undefined' && typeof (globalThis as any).__bp_dbg !== 'undefined' && (
+              <div>{`dbg draggingIdx=${draggingIdx} topBottles=${JSON.stringify(topBottles)} isDragging=${isDragging} color=${topBottles[draggingIdx ?? -1]}`}</div>
+            )}
             <Bottle
               color={topBottles[draggingIdx]}
               isTarget={false}
@@ -287,8 +324,8 @@ export default function BottlePuzzle() {
           </div>
         )}
 
-        <div className="flex flex-col gap-28 items-center relative z-10">
-          <div className="flex gap-10 p-10 bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl border-8 border-white dark:border-gray-800 relative">
+        <div className={`flex flex-col items-center relative z-10 ${isMobile ? 'gap-16' : 'gap-28'}`}>
+          <div className={`flex gap-6 md:gap-10 p-6 md:p-10 bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl border-8 border-white dark:border-gray-800 relative`}>
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">
               Player's Shelf
             </div>
@@ -309,7 +346,7 @@ export default function BottlePuzzle() {
             ))}
           </div>
 
-          <div className="flex gap-10 p-10 bg-gray-100 dark:bg-gray-800/50 rounded-[40px] border-4 border-dashed border-gray-300 dark:border-gray-700 relative">
+          <div className={`flex gap-6 md:gap-10 p-6 md:p-10 bg-gray-100 dark:bg-gray-800/50 rounded-[40px] border-4 border-dashed border-gray-300 dark:border-gray-700 relative`}>
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gray-400 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">
               Target Sequence
             </div>
@@ -325,23 +362,27 @@ export default function BottlePuzzle() {
           </div>
         </div>
 
-        <div className="flex gap-4">
+        <div className={`flex ${isMobile ? 'flex-col gap-3' : 'gap-4'} items-center ${isMobile ? 'w-full' : ''}`}>
           <button
             onClick={initGame}
-            className="px-8 py-3 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full font-bold text-lg hover:scale-105 transition-all shadow-md active:scale-95"
+            className={`w-full md:w-auto px-8 py-3 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full font-bold text-lg hover:scale-105 transition-all shadow-md active:scale-95 ${isMobile ? 'text-base' : ''}`}
           >
             🔄 Reset
           </button>
-          <button
-            onClick={autoRandomSwap}
-            disabled={isAutoSolving || winner}
-            className={`px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full font-bold text-lg transition-all shadow-xl hover:scale-105 active:scale-95 ${isAutoSolving ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isAutoSolving ? '🤖 Trying...' : '🤖 Auto Mode'}
-          </button>
+          <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+            <input
+              type="checkbox"
+              checked={autoModeEnabled}
+              onChange={(e) => setAutoModeEnabled(e.target.checked)}
+              className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+            />
+            <span className="text-gray-700 dark:text-gray-300 font-medium">
+              🤖 Auto Mode {winner ? '(solved!)' : autoModeEnabled ? '(running...)' : ''}
+            </span>
+          </label>
         </div>
 
-        <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 rounded-2xl backdrop-blur-sm border border-white/20">
+        <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 md:p-8 rounded-2xl backdrop-blur-sm border border-white/20">
           <p className="font-bold mb-2 text-gray-700 dark:text-gray-300">How to play:</p>
           <div className="space-y-2">
             <p>1. 🖱️ <span className="font-semibold">Drag</span> a bottle from the top shelf.</p>

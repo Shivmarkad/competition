@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { playSwapSound, playWinSound, toggleBackgroundMusic, isBackgroundMusicPlaying } from '@/lib/sounds';
 
 type BottleColor = 'red' | 'blue' | 'green' | 'yellow';
 
@@ -114,12 +115,14 @@ export default function BottlePuzzle() {
             const targetIdx = parseInt(bottleWrapper.getAttribute('data-bottle-idx') || '-1', 10);
 
             if (targetIdx !== -1 && targetIdx !== sourceIdx) {
+              playSwapSound();
               setTopBottles(prevTop => {
                 const newTop = [...prevTop];
                 [newTop[sourceIdx], newTop[targetIdx]] = [newTop[targetIdx], newTop[sourceIdx]];
 
                 if (newTop.every((color, i) => color === targetBottles[i])) {
                   setWinner(true);
+                  playWinSound();
                 }
                 return newTop;
               });
@@ -184,11 +187,13 @@ export default function BottlePuzzle() {
         setCharPos({ x: rect.left + rect.width / 2, y: rect.top - 60 });
       }
 
+      playSwapSound();
       setTopBottles(prevTop => {
         const newTop = [...prevTop];
         [newTop[idx1], newTop[idx2]] = [newTop[idx2], newTop[idx1]];
         if (newTop.every((color, i) => color === targetBottles[i])) {
           setWinner(true);
+          playWinSound();
         }
         return newTop;
       });
@@ -380,6 +385,13 @@ export default function BottlePuzzle() {
               🤖 Auto Mode {winner ? '(solved!)' : autoModeEnabled ? '(running...)' : ''}
             </span>
           </label>
+          <button
+            onClick={() => toggleBackgroundMusic()}
+            className={`w-10 h-10 rounded-full border border-stone-300 flex items-center justify-center transition-all ${isBackgroundMusicPlaying() ? 'bg-amber-600 text-white border-amber-600' : 'bg-white dark:bg-stone-800 text-stone-400 dark:text-stone-500'}`}
+            aria-label={isBackgroundMusicPlaying() ? 'Turn music off' : 'Turn music on'}
+          >
+            {isBackgroundMusicPlaying() ? '🔊' : '🔇'}
+          </button>
         </div>
 
         <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 md:p-8 rounded-2xl backdrop-blur-sm border border-white/20">

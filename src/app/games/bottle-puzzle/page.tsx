@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { playSwapSound, playWinSound, toggleBackgroundMusic, isBackgroundMusicPlaying } from '@/lib/sounds';
+import { playSwapSound, playWinSound, toggleBackgroundMusic, isBackgroundMusicPlaying, startBackgroundMusic, stopBackgroundMusic, getMusicThemes, getCurrentMusicTheme } from '@/lib/sounds';
 
 type BottleColor = 'red' | 'blue' | 'green' | 'yellow';
 
@@ -26,6 +26,9 @@ export default function BottlePuzzle() {
   const [isDragging, setIsDragging] = useState(false);
   const [autoModeEnabled, setAutoModeEnabled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [bgmEnabled, setBgmEnabled] = useState(false);
+  const [musicTheme, setMusicTheme] = useState('ambient');
+  const [musicSettingsOpen, setMusicSettingsOpen] = useState(false);
   const autoModeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Refs keep the latest drag values without forcing the effect to re-subscribe
@@ -57,6 +60,16 @@ export default function BottlePuzzle() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Background music effect
+  useEffect(() => {
+    if (bgmEnabled) {
+      startBackgroundMusic(musicTheme);
+    } else {
+      stopBackgroundMusic();
+    }
+    return () => stopBackgroundMusic();
+  }, [bgmEnabled, musicTheme]);
 
   const handleMouseDown = (idx: number, e: any) => {
     if (winner || autoModeEnabled) return;
@@ -386,12 +399,53 @@ export default function BottlePuzzle() {
             </span>
           </label>
           <button
-            onClick={() => toggleBackgroundMusic()}
-            className={`w-10 h-10 rounded-full border border-stone-300 flex items-center justify-center transition-all ${isBackgroundMusicPlaying() ? 'bg-amber-600 text-white border-amber-600' : 'bg-white dark:bg-stone-800 text-stone-400 dark:text-stone-500'}`}
-            aria-label={isBackgroundMusicPlaying() ? 'Turn music off' : 'Turn music on'}
+            onClick={() => setBgmEnabled(!bgmEnabled)}
+            className={`w-10 h-10 rounded-full border border-stone-300 flex items-center justify-center transition-all ${bgmEnabled ? 'bg-amber-600 text-white border-amber-600' : 'bg-white dark:bg-stone-800 text-stone-400 dark:text-stone-500'}`}
+            aria-label={bgmEnabled ? 'Turn music off' : 'Turn music on'}
           >
-            {isBackgroundMusicPlaying() ? '🔊' : '🔇'}
+            {bgmEnabled ? '🔊' : '🔇'}
           </button>
+
+          {/* Music settings dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setMusicSettingsOpen(!musicSettingsOpen)}
+              className="w-10 h-10 rounded-full border border-stone-300 flex items-center justify-center transition-all hover:bg-stone-100 dark:hover:bg-stone-700"
+              aria-label="Music settings"
+            >
+              ⚙️
+            </button>
+            {musicSettingsOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-stone-800 rounded-xl shadow-lg border border-stone-200 dark:border-stone-700 p-2 z-50 max-h-[70vh] overflow-y-auto">
+                <p className="px-3 py-1 text-xs font-medium text-stone-600 dark:text-stone-300 uppercase tracking-wider">Music Theme</p>
+                {getMusicThemes().map(theme => (
+                  <button
+                    key={theme.id}
+                    onClick={() => {
+                      setMusicTheme(theme.id);
+                      if (bgmEnabled) {
+                        stopBackgroundMusic();
+                        startBackgroundMusic(theme.id);
+                      }
+                      setMusicSettingsOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${musicTheme === theme.id ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-200' : 'text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700'}`}
+                  >
+                    {musicTheme === theme.id ? '✓' : ''}
+                    <span className="flex-1">{theme.label}</span>
+                  </button>
+                ))}
+                {bgmEnabled && (
+                  <button
+                    onClick={() => setMusicSettingsOpen(false)}
+                    className="flex w-full items-center justify-center px-3 py-2 rounded-lg text-sm text-stone-600 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-700"
+                  >
+                    Done
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-900/50 p-6 md:p-8 rounded-2xl backdrop-blur-sm border border-white/20">
